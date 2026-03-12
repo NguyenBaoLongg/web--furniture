@@ -1,8 +1,19 @@
-const express = require("express");
-const router = express.Router();
-const productController = require("../controllers/product.controller");
+import express from "express";
+import {
+  getAllProducts,
+  getProductBySlug,
+  getNewArrivals,
+  getProductsByCategory,
+  getProductsByRoom,
+} from "../controllers/productController.js";
 
-router.get("/categories", productController.getCategories);
-router.get("/new-arrivals", productController.getNewArrivals);
-router.get("/", productController.getAllProducts);
-module.exports = router;
+const router = express.Router();
+
+router.get("/new-arrivals", getNewArrivals);
+router.get("/category/:categorySlug", getProductsByCategory);
+router.get("/room/:roomSlug", getProductsByRoom);
+
+router.get("/", getAllProducts);
+router.get("/:slug", getProductBySlug);
+
+export default router;
