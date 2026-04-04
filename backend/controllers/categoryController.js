@@ -27,7 +27,6 @@ export const getAllCategories = async (req, res) => {
   }
 };
 
-// Lấy chi tiết 1 Danh mục/Phòng dựa vào slug
 export const getCategoryBySlug = async (req, res) => {
   try {
     const { slug } = req.params;

@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@supabase/supabase-js": "^2.99.3",
+    "react-hot-toast": "^2.6.0",
+    "vnpay": "^2.4.4"
+  }
+}

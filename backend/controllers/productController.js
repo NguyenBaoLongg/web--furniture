@@ -2,38 +2,17 @@ import { supabase } from "../config/supabase.js";
 
 export const getAllProducts = async (req, res) => {
   try {
-    const { data, error } = await supabase.from("products").select("*");
+    const { data: products, error } = await supabase.from("products").select(`
+        *,
+        categories ( name, slug )
+      `);
+
     if (error) throw error;
-    res.json(data);
+
+    res.status(200).json(products);
   } catch (error) {
     console.error("Lỗi lấy tất cả sản phẩm:", error);
-    res.status(500).json({ message: "Lỗi Server" });
-  }
-};
-
-export const getProductBySlug = async (req, res) => {
-  try {
-    const { slug } = req.params;
-    const { data, error } = await supabase
-      .from("products")
-      .select(
-        `
-        *,
-        product_images ( image_url ),
-        product_variants ( color, image_url, stock )
-      `,
-      )
-      .eq("slug", slug)
-      .single();
-
-    if (error) throw error;
-    if (!data)
-      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
-
-    res.json(data);
-  } catch (error) {
-    console.error("Lỗi lấy chi tiết sản phẩm:", error);
-    res.status(500).json({ message: "Lỗi Server" });
+    res.status(500).json({ message: "Lỗi server khi lấy dữ liệu" });
   }
 };
 
@@ -83,6 +62,33 @@ export const getProductsByRoom = async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error("Lỗi lấy sản phẩm theo phòng:", error);
+    res.status(500).json({ message: "Lỗi Server" });
+  }
+};
+
+export const getProductBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const { data, error } = await supabase
+      .from("products")
+      .select(
+        `
+        *,
+        categories ( name, slug ),
+        product_images ( image_url )
+      `,
+      )
+      .eq("slug", slug)
+      .single();
+
+    if (error) throw error;
+    if (!data)
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+
+    res.json(data);
+  } catch (error) {
+    console.error("Lỗi ở Backend:", error);
     res.status(500).json({ message: "Lỗi Server" });
   }
 };

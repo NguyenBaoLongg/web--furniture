@@ -62,6 +62,7 @@ export const NewArrivals = () => {
             {products.map((product) => (
               <div key={product.id} className="snap-start">
                 <ProductCard
+                  id={product.id}
                   slug={product.slug}
                   title={product.title}
                   price={product.price}

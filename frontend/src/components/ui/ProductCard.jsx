@@ -1,10 +1,22 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Heart } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useCart } from "../../context/CartContext";
 
-export const ProductCard = ({ title, price, image, slug }) => {
+export const ProductCard = ({ id, title, price, image, slug }) => {
   const formattedPrice = `${Number(price).toLocaleString("en-US")} VND`;
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
+
+  const handleAddToCartClick = (e) => {
+    e.preventDefault();
+    addToCart({
+      product_id: id,
+      variant_id: null,
+      quantity: 1,
+    });
+  };
 
   return (
     <Link to={`/product/${slug}`} className="block group cursor-pointer h-full">
@@ -20,12 +32,15 @@ export const ProductCard = ({ title, price, image, slug }) => {
           />
           <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10 flex gap-2">
             <button
-              onClick={(e) => e.preventDefault()}
+              onClick={handleAddToCartClick}
               className="flex-1 bg-white text-black border border-black py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider hover:bg-slate-50 transition-colors">
               Thêm vào giỏ
             </button>
             <button
-              onClick={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(`/product/${slug}`);
+              }}
               className="flex-1 bg-black text-white border border-black py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider hover:bg-slate-800 transition-colors">
               Xem thêm
             </button>

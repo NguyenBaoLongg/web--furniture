@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { Link } from "react-router-dom";
+import { axiosClient } from "../../utils/axiosClient";
 import { CategoryCard } from "../../components/ui/CategoryCard";
 import { Loader2 } from "lucide-react";
 
-export const Categories = ({ onNavigate }) => {
+export const Categories = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await axios.get(
-          "http://localhost:5000/api/categories/featured",
-        );
+        const response = await axiosClient.get("/categories/featured");
         setCategories(response.data);
       } catch (error) {
-        console.error("Lỗi tải danh mục:", error);
+        console.error(error);
       } finally {
         setLoading(false);
       }
@@ -34,11 +33,11 @@ export const Categories = ({ onNavigate }) => {
             Khám phá các thiết kế theo từng phòng
           </p>
         </div>
-        <button
-          className="text-primary font-bold border-b-2 border-primary/20 hover:border-primary transition-all pb-1 hidden sm:block"
-          onClick={() => onNavigate("category")}>
+        <Link
+          to="/shop"
+          className="text-primary font-bold border-b-2 border-primary/20 hover:border-primary transition-all pb-1 hidden sm:block">
           Xem tất cả Danh mục
-        </button>
+        </Link>
       </div>
 
       {loading ? (
@@ -50,7 +49,7 @@ export const Categories = ({ onNavigate }) => {
           {categories.map((cat) => (
             <CategoryCard
               key={cat.id}
-              onClick={() => onNavigate("category")}
+              slug={cat.slug}
               title={cat.name}
               image={cat.image_url}
             />

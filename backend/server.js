@@ -1,17 +1,21 @@
 import express from "express";
 import cors from "cors";
-import productRoutes from "./routes/product.routes.js";
-import categoryRoutes from "./routes/category.routes.js";
-import roomRoutes from "./routes/room.routes.js";
-
+import productRoutes from "./routes/productRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
+import roomRoutes from "./routes/roomRoutes.js";
+import cartRoutes from "./routes/cartRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-
+app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/rooms", roomRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/orders", orderRoutes);
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(` ${PORT} `);
