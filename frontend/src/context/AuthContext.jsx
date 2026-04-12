@@ -48,8 +48,13 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Dùng cho đăng nhập bằng Email/Pass truyền thống
-  const login = (userData) => {
+  const login = async (userData, session) => {
+    if (session) {
+      await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+    }
     setUser(userData);
   };
 

@@ -23,7 +23,7 @@ export const LoginPage = () => {
 
     try {
       const res = await axiosClient.post("/auth/login", { email, password });
-      login(res.data.user, res.data.session);
+      await login(res.data.user, res.data.session);
       toast.success("Đăng nhập thành công!");
       navigate("/");
     } catch (error) {

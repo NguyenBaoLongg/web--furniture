@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ChevronRight, SlidersHorizontal, Star } from "lucide-react";
 import { axiosClient } from "../../utils/axiosClient";
 import { ProductCard } from "../../components/ui/ProductCard.jsx";
@@ -8,6 +8,8 @@ export const ProductsPage = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
 
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [activeSort, setActiveSort] = useState("Phổ biến");
@@ -29,7 +31,7 @@ export const ProductsPage = () => {
       try {
         setLoading(true);
         const [prodRes, catRes] = await Promise.all([
-          axiosClient.get("/products"),
+          axiosClient.get(`/products?activeOnly=true${searchQuery ? `&search=${searchQuery}` : ""}`),
           axiosClient.get("/categories"),
         ]);
         setProducts(prodRes.data);
@@ -41,7 +43,7 @@ export const ProductsPage = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [searchQuery]);
 
   // TỰ ĐỘNG LẤY DANH SÁCH MÀU SẮC VÀ CHẤT LIỆU TỪ DATABASE
   const availableColors = useMemo(() => {
@@ -132,6 +134,16 @@ export const ProductsPage = () => {
   return (
     <div className="bg-[#fcfcfc] min-h-screen pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        {searchQuery && (
+          <div className="mb-6 p-4 bg-white rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <h2 className="text-lg font-medium text-slate-800">
+              Kết quả tìm kiếm cho: <span className="font-bold text-primary">"{searchQuery}"</span>
+            </h2>
+            <span className="text-sm text-slate-400">
+              Tìm thấy <span className="font-bold text-slate-600">{displayedProducts.length}</span> sản phẩm
+            </span>
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
           <div className="flex items-center text-sm text-slate-500 gap-2">
             <Link to="/" className="hover:text-primary transition-colors">

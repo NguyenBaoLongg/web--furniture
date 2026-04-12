@@ -17,13 +17,16 @@ import {
 import { axiosClient } from "../../utils/axiosClient";
 import { ProductCard } from "../../components/ui/ProductCard";
 import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
 
 export const ProductDetailPage = () => {
   const { slug } = useParams();
   const { addToCart } = useCart();
+  const { user } = useAuth();
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   const [allGallery, setAllGallery] = useState([]);
   const [displayImages, setDisplayImages] = useState([]);
@@ -58,6 +61,15 @@ export const ProductDetailPage = () => {
 
         const relatedRes = await axiosClient.get("/products/new-arrivals");
         setRelatedProducts(relatedRes.data.slice(0, 4));
+
+        if (user?.id) {
+          try {
+            const favRes = await axiosClient.get(`/wishlist/check/${user.id}/${productData.id}`);
+            setIsFavorite(favRes.data.isFavorite);
+          } catch (error) {
+            console.error("Lỗi kiểm tra wishlist", error);
+          }
+        }
       } catch (error) {
         console.error("Lỗi tải chi tiết:", error);
       } finally {
@@ -65,7 +77,27 @@ export const ProductDetailPage = () => {
       }
     };
     if (slug) fetchProductData();
-  }, [slug]);
+  }, [slug, user]);
+
+  const toggleWishlist = async () => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để sử dụng tính năng này!");
+      return;
+    }
+    if (!product) return;
+
+    try {
+      const res = await axiosClient.post("/wishlist/toggle", {
+        user_id: user.id,
+        product_id: product.id,
+      });
+      setIsFavorite(res.data.isFavorite);
+      toast.success(res.data.message === "Added to wishlist" ? "Đã thêm vào mục yêu thích" : "Đã xoá khỏi mục yêu thích");
+    } catch (error) {
+      console.error("Lỗi cập nhật wishlist", error);
+      toast.error("Đã xảy ra lỗi, vui lòng thử lại sau.");
+    }
+  };
 
   if (loading) {
     return (
@@ -177,28 +209,59 @@ export const ProductDetailPage = () => {
               {formatPrice(product.price)}
             </div>
 
-            <p className="text-sm text-slate-600 leading-relaxed mb-8">
+            <p className="text-sm text-slate-600 leading-relaxed mb-6">
               {product.description}
             </p>
 
-            {product.colors && product.colors.length > 0 && (
+            {product.product_rooms && product.product_rooms.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-8">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider self-center mr-2">
+                  Phù hợp cho:
+                </span>
+                {product.product_rooms.map((pr, idx) => (
+                  <Link
+                    key={idx}
+                    to={`/room/${pr.rooms?.slug}`}
+                    className="px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-xs text-slate-600 hover:bg-primary hover:text-white hover:border-primary transition-all">
+                    {pr.rooms?.name}
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {product.product_colors && product.product_colors.length > 0 && (
               <div className="mb-8">
                 <div className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">
-                  MÀU SẮC ĐẶC TRƯNG:
+                  MÀU SẮC & PHONG THỦY:
                 </div>
-                <div className="flex flex-wrap gap-4">
-                  {product.colors.map((color, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <div
-                        className="w-6 h-6 rounded-full border border-black/10 shadow-sm"
-                        style={{ backgroundColor: color.hex }}
-                        title={color.name}
-                      />
-                      <span className="text-sm text-slate-600 font-medium">
-                        {color.name}
-                      </span>
-                    </div>
-                  ))}
+                <div className="flex flex-wrap gap-x-6 gap-y-4">
+                  {product.product_colors.map((pc, idx) => {
+                    const color = pc.colors;
+                    if (!color) return null;
+                    return (
+                      <div key={idx} className="flex items-center gap-3 bg-slate-50/50 pr-4 pl-1 py-1 rounded-full border border-slate-100 hover:border-primary/20 transition-colors">
+                        <div
+                          className="w-8 h-8 rounded-full border border-black/10 shadow-sm"
+                          style={{ backgroundColor: color.hex }}
+                          title={color.name}
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-[11px] font-bold text-slate-900 leading-none mb-1">
+                            {color.name}
+                          </span>
+                          <span className={`text-[9px] font-medium leading-none ${
+                            color.element === 'Kim' ? 'text-slate-500' :
+                            color.element === 'Mộc' ? 'text-green-600' :
+                            color.element === 'Thủy' ? 'text-blue-600' :
+                            color.element === 'Hỏa' ? 'text-red-600' :
+                            'text-amber-700'
+                          }`}>
+                            Hợp mệnh {color.element}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -236,12 +299,18 @@ export const ProductDetailPage = () => {
                 Thêm vào giỏ hàng
               </button>
 
-              <button className="w-12 h-12 flex-shrink-0 flex items-center justify-center border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-500 transition-colors rounded-sm">
-                <Heart className="w-5 h-5" />
+              <button 
+                onClick={toggleWishlist}
+                className={`w-12 h-12 flex-shrink-0 flex items-center justify-center border transition-colors rounded-sm ${
+                  isFavorite 
+                    ? "border-red-500 text-red-500 bg-red-50" 
+                    : "border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-500"
+                }`}>
+                <Heart className={`w-5 h-5 ${isFavorite ? "fill-red-500" : ""}`} />
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 py-6 border-t border-slate-100">
+            <div className="grid grid-cols-1 gap-4 py-6 border-t border-slate-100">
               <div className="flex items-start gap-3">
                 <Package className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                 <div>
@@ -250,28 +319,6 @@ export const ProductDetailPage = () => {
                   </div>
                   <div className="text-xs font-bold text-primary">
                     {totalStock > 0 ? "Còn hàng" : "Liên hệ"}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Truck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <div className="text-[10px] text-slate-500 font-medium uppercase">
-                    Giao hàng
-                  </div>
-                  <div className="text-xs font-bold text-slate-900">
-                    Miễn phí cao cấp
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <div className="text-[10px] text-slate-500 font-medium uppercase">
-                    Bảo hành
-                  </div>
-                  <div className="text-xs font-bold text-slate-900">
-                    Bảo hành 2 năm
                   </div>
                 </div>
               </div>

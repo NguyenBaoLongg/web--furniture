@@ -13,20 +13,20 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { axiosClient } from "../../utils/axiosClient";
 import { useAuth } from "../../context/AuthContext";
-// 1. IMPORT USECART TỪ CONTEXT
 import { useCart } from "../../context/CartContext";
 
-// 2. BỎ CÁI cartCount TRONG NGOẶC ĐI VÌ TA ĐÃ DÙNG CONTEXT TOÀN CỤC
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const dropdownRef = useRef(null);
   const headerRef = useRef(null);
   const navigate = useNavigate();
 
   const { user, logout } = useAuth();
-
-  // 3. LẤY DỮ LIỆU GIỎ HÀNG VÀ TÍNH TỔNG SỐ LƯỢNG
   const { cartItems } = useCart();
   const totalCartItems =
     cartItems?.reduce((total, item) => total + item.quantity, 0) || 0;
@@ -50,15 +50,48 @@ export const Header = () => {
       if (headerRef.current && !headerRef.current.contains(event.target)) {
         setIsMenuOpen(false);
       }
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (searchKeyword.trim().length >= 2) {
+        try {
+          const res = await axiosClient.get(
+            `/products?activeOnly=true&search=${encodeURIComponent(searchKeyword.trim())}`,
+          );
+          setSuggestions(res.data.slice(0, 5));
+          setShowSuggestions(true);
+        } catch (error) {
+          console.error("Lỗi lấy gợi ý:", error);
+        }
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchKeyword]);
+
   const handleLogout = () => {
     logout();
     setIsMenuOpen(false);
     navigate("/login");
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchKeyword.trim()) {
+      navigate(`/products?search=${encodeURIComponent(searchKeyword.trim())}`);
+      setSearchKeyword("");
+      setShowSuggestions(false);
+    }
   };
 
   return (
@@ -154,13 +187,74 @@ export const Header = () => {
           </nav>
 
           <div className="flex items-center gap-2 md:gap-4">
-            <div className="hidden lg:flex items-center bg-slate-100 rounded-full px-4 py-2 w-56 border border-transparent focus-within:border-primary/20 focus-within:bg-white transition-all">
-              <Search className="text-slate-500 w-4 h-4 mr-2" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm..."
-                className="bg-transparent border-none focus:outline-none focus:ring-0 text-sm w-full placeholder:text-slate-400"
-              />
+            <div className="relative" ref={dropdownRef}>
+              <form 
+                onSubmit={handleSearch}
+                className="hidden lg:flex items-center bg-slate-100 rounded-full px-4 py-2 w-56 border border-transparent focus-within:border-primary/20 focus-within:bg-white transition-all">
+                <Search className="text-slate-500 w-4 h-4 mr-2" />
+                <input
+                  type="text"
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  onFocus={() => searchKeyword.length >= 2 && setShowSuggestions(true)}
+                  placeholder="Tìm kiếm..."
+                  className="bg-transparent border-none focus:outline-none focus:ring-0 text-sm w-full placeholder:text-slate-400"
+                />
+              </form>
+
+              {/* Suggestions Dropdown */}
+              <AnimatePresence>
+                {showSuggestions && suggestions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute top-full mt-2 left-0 w-72 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-[60]"
+                  >
+                    <div className="p-2">
+                      <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Sản phẩm gợi ý
+                      </div>
+                      {suggestions.map((product) => (
+                        <Link
+                          key={product.id}
+                          to={`/products/${product.slug}`}
+                          onClick={() => {
+                            setShowSuggestions(false);
+                            setSearchKeyword("");
+                          }}
+                          className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors group"
+                        >
+                          <div className="w-12 h-12 rounded-md overflow-hidden bg-slate-100 flex-shrink-0">
+                            <img 
+                              src={product.thumbnail} 
+                              alt={product.title}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-medium text-slate-800 truncate">
+                              {product.title}
+                            </h4>
+                            <p className="text-xs font-bold text-primary">
+                              {new Intl.NumberFormat("vi-VN", {
+                                style: "currency",
+                                currency: "VND",
+                              }).format(product.price)}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
+                      <button
+                        onClick={handleSearch}
+                        className="w-full mt-2 py-2 text-xs font-bold text-slate-500 hover:text-primary border-t border-slate-50 transition-colors"
+                      >
+                        Xem tất cả kết quả
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <button className="p-2 hover:bg-slate-100 rounded-full text-slate-700 transition-colors hidden sm:block">
@@ -169,9 +263,11 @@ export const Header = () => {
 
             {user ? (
               <div className="hidden sm:flex items-center gap-2 px-2">
-                <span className="text-sm font-medium text-slate-700">
+                <Link
+                  to="/profile"
+                  className="text-sm font-medium text-slate-700 hover:text-primary transition-all">
                   Chào, {user.full_name || user.fullName}
-                </span>
+                </Link>
                 <span className="text-slate-300">|</span>
                 <button
                   onClick={handleLogout}
@@ -259,9 +355,12 @@ export const Header = () => {
               <div className="pt-4 border-t border-slate-100 mt-4">
                 {user ? (
                   <div className="space-y-3">
-                    <span className="block text-[14px] font-bold text-slate-700">
+                    <Link
+                      to="/profile"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block text-[14px] font-bold text-slate-700 hover:text-primary transition-all">
                       Chào, {user.full_name || user.fullName}
-                    </span>
+                    </Link>
                     <button
                       onClick={handleLogout}
                       className="block text-[14px] font-bold text-red-500 w-full text-left">

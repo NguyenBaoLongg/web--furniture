@@ -2,16 +2,15 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { axiosClient } from "../../utils/axiosClient";
+import { ProfileSidebar } from "../../components/profile/ProfileSidebar";
 import {
   Package,
   Calendar,
-  CreditCard,
   ChevronRight,
   Search,
   CheckCircle,
   Clock,
   MapPin,
-  Receipt,
 } from "lucide-react";
 
 export const OrderHistoryPage = () => {
@@ -121,43 +120,13 @@ export const OrderHistoryPage = () => {
   };
 
   const filteredOrders = orders.filter((order) =>
-    order.id.toLowerCase().includes(searchTerm.toLowerCase()),
+    String(order.id).toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
-    <div className="bg-[#fcfcfc] min-h-screen py-10 px-4">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-8">
-        {/* Sidebar */}
-        <div className="w-full md:w-64 shrink-0">
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 sticky top-10">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center font-serif text-xl font-bold text-slate-600">
-                {user?.full_name?.charAt(0)}
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900">{user?.full_name}</h3>
-                <p className="text-xs text-slate-500">{user?.email}</p>
-              </div>
-            </div>
-            <nav className="space-y-2">
-              <Link
-                to="/profile"
-                className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-500 hover:bg-slate-50 transition-colors">
-                <Search className="w-5 h-5" /> Tổng quan
-              </Link>
-              <Link
-                to="/profile/orders"
-                className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-[#2b4c4f] bg-[#f8fcfb] border border-[#e2f0ee] transition-colors">
-                <Package className="w-5 h-5" /> Lịch sử đơn hàng
-              </Link>
-              <Link
-                to="/profile/transactions"
-                className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-500 hover:bg-slate-50 transition-colors">
-                <Receipt className="w-5 h-5" /> Lịch sử giao dịch
-              </Link>
-            </nav>
-          </div>
-        </div>
+    <div className="bg-[#fcfcfc] min-h-screen py-12 px-4">
+      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-10">
+        <ProfileSidebar />
 
         {/* Main Content */}
         <div className="flex-1 space-y-6">
@@ -233,7 +202,7 @@ export const OrderHistoryPage = () => {
                           <Link
                             to={`/profile/orders/${order.id}`}
                             className="font-mono text-sm font-bold text-[#2b4c4f] hover:underline">
-                            #{order.id.split("-")[0].toUpperCase()}
+                            #{String(order.id).split("-")[0].toUpperCase()}
                           </Link>
                           <div className="text-xs text-slate-400 mt-1 truncate max-w-[150px]">
                             {order.order_items?.length} sản phẩm
