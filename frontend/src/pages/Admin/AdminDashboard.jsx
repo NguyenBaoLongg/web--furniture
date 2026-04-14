@@ -50,10 +50,20 @@ export const AdminDashboard = () => {
         setLoading(true);
 
         // Calculate date range for filter
-        const startOfMonth = new Date(filterDate.year, filterDate.month - 1, 1).toISOString();
-        const endOfMonth = new Date(filterDate.year, filterDate.month, 0, 23, 59, 59).toISOString();
+        const startOfMonth = new Date(
+          filterDate.year,
+          filterDate.month - 1,
+          1,
+        ).toISOString();
+        const endOfMonth = new Date(
+          filterDate.year,
+          filterDate.month,
+          0,
+          23,
+          59,
+          59,
+        ).toISOString();
 
-        // 1. Fetch Orders with filter
         const { data: orders, error: ordersError } = await supabase
           .from("orders")
           .select("*")
@@ -63,10 +73,10 @@ export const AdminDashboard = () => {
 
         if (ordersError) throw ordersError;
 
-        // 2. Fetch Order Items with filter
-        const { data: orderItems, error: itemsError } = await supabase.from(
-          "order_items",
-        ).select(`
+        const { data: orderItems, error: itemsError } = await supabase
+          .from("order_items")
+          .select(
+            `
             quantity,
             price,
             created_at,
@@ -76,13 +86,13 @@ export const AdminDashboard = () => {
               thumbnail,
               categories ( name )
             )
-          `)
+          `,
+          )
           .gte("created_at", startOfMonth)
           .lte("created_at", endOfMonth);
 
         if (itemsError) throw itemsError;
 
-        // 3. Fetch New Users for current month
         const { count: newUserCount, error: userError } = await supabase
           .from("users")
           .select("*", { count: "exact", head: true })
@@ -91,16 +101,12 @@ export const AdminDashboard = () => {
 
         if (userError) throw userError;
 
-        // 4. Fetch Total Users for Conversion Rate (Overall)
         const { count: totalUserCount, error: totalUserError } = await supabase
           .from("users")
           .select("*", { count: "exact", head: true });
 
         if (totalUserError) throw totalUserError;
 
-        // --- PROCESSING DATA ---
-
-        // Metrics
         const paidOrders = orders.filter((o) => o.payment_status === "paid");
         const revenue = paidOrders.reduce(
           (sum, order) => sum + order.total_price,
@@ -119,25 +125,27 @@ export const AdminDashboard = () => {
           activeUsers: newUserCount,
         });
 
-        // Revenue Chart (Selected Month)
-        const daysInMonth = new Date(filterDate.year, filterDate.month, 0).getDate();
+        const daysInMonth = new Date(
+          filterDate.year,
+          filterDate.month,
+          0,
+        ).getDate();
         const dailyData = {};
-        
+
         for (let i = 1; i <= daysInMonth; i++) {
-          const dateStr = `${filterDate.month.toString().padStart(2, '0')}/${i.toString().padStart(2, '0')}`;
+          const dateStr = `${filterDate.month.toString().padStart(2, "0")}/${i.toString().padStart(2, "0")}`;
           dailyData[dateStr] = { name: dateStr, value: 0 };
         }
 
         paidOrders.forEach((order) => {
           const d = new Date(order.created_at);
-          const dateStr = `${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')}`;
+          const dateStr = `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getDate().toString().padStart(2, "0")}`;
           if (dailyData[dateStr]) {
             dailyData[dateStr].value += order.total_price;
           }
         });
         setRevenueChartData(Object.values(dailyData));
 
-        // Category Stats
         const catMap = {};
         orderItems.forEach((item) => {
           const catName = item.products?.categories?.name || "Khác";
@@ -201,31 +209,46 @@ export const AdminDashboard = () => {
   const handleExportExcel = async () => {
     try {
       setLoading(true);
-      
-      const startOfMonth = new Date(filterDate.year, filterDate.month - 1, 1).toISOString();
-      const endOfMonth = new Date(filterDate.year, filterDate.month, 0, 23, 59, 59).toISOString();
+
+      const startOfMonth = new Date(
+        filterDate.year,
+        filterDate.month - 1,
+        1,
+      ).toISOString();
+      const endOfMonth = new Date(
+        filterDate.year,
+        filterDate.month,
+        0,
+        23,
+        59,
+        59,
+      ).toISOString();
 
       // FETCH DATA (Dashboard stays responsible for fetching)
       const { data: fullOrders, error: ordersErr } = await supabase
         .from("orders")
-        .select(`
+        .select(
+          `
           id, user_id, total_price, status, payment_method, payment_status, created_at,
           user_addresses ( street_address, ward, city, receiver_name, phone_number ),
           order_items ( quantity, price, products ( title ) )
-        `)
+        `,
+        )
         .gte("created_at", startOfMonth)
         .lte("created_at", endOfMonth)
         .order("created_at", { ascending: false });
 
       if (ordersErr) throw ordersErr;
 
-      const { data: allUsers, error: usersErr } = await supabase.from("users").select("*");
+      const { data: allUsers, error: usersErr } = await supabase
+        .from("users")
+        .select("*");
       if (usersErr) throw usersErr;
 
       const { data: allProducts, error: prodsErr } = await supabase
         .from("products")
         .select("*, categories(name)");
-      
+
       if (prodsErr) throw prodsErr;
 
       // CALL UTILITY
@@ -234,7 +257,7 @@ export const AdminDashboard = () => {
         allUsers,
         allProducts,
         metrics,
-        filterDate
+        filterDate,
       });
 
       toast.success("Xuất báo cáo thành công!");
@@ -272,20 +295,32 @@ export const AdminDashboard = () => {
             <Calendar size={16} className="text-[#2b4c4f]" />
             <select
               value={filterDate.month}
-              onChange={(e) => setFilterDate(prev => ({ ...prev, month: parseInt(e.target.value) }))}
-              className="bg-transparent text-sm font-bold text-gray-700 outline-none cursor-pointer"
-            >
+              onChange={(e) =>
+                setFilterDate((prev) => ({
+                  ...prev,
+                  month: parseInt(e.target.value),
+                }))
+              }
+              className="bg-transparent text-sm font-bold text-gray-700 outline-none cursor-pointer">
               {[...Array(12)].map((_, i) => (
-                <option key={i + 1} value={i + 1}>Tháng {i + 1}</option>
+                <option key={i + 1} value={i + 1}>
+                  Tháng {i + 1}
+                </option>
               ))}
             </select>
             <select
               value={filterDate.year}
-              onChange={(e) => setFilterDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
-              className="bg-transparent text-sm font-bold text-gray-700 outline-none cursor-pointer border-l pl-2 border-gray-300"
-            >
-              {[2024, 2025, 2026].map(y => (
-                <option key={y} value={y}>{y}</option>
+              onChange={(e) =>
+                setFilterDate((prev) => ({
+                  ...prev,
+                  year: parseInt(e.target.value),
+                }))
+              }
+              className="bg-transparent text-sm font-bold text-gray-700 outline-none cursor-pointer border-l pl-2 border-gray-300">
+              {[2024, 2025, 2026].map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
               ))}
             </select>
           </div>
@@ -380,7 +415,7 @@ export const AdminDashboard = () => {
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between relative overflow-hidden">
           <div className="flex justify-between items-start mb-4 relative z-10">
             <span className="text-xs font-bold text-gray-500 tracking-wider uppercase">
-              Giá trị vòng đời KH
+              Tổng số khách hàng
             </span>
             <div className="p-2 bg-yellow-50 rounded-lg text-yellow-600">
               <Star size={16} />

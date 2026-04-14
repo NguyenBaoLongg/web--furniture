@@ -11,7 +11,14 @@ export const getCart = async (req, res) => {
         quantity,
         product_id,
         variant_id,
-        products ( title, price, thumbnail, colors )
+        products ( 
+          title, 
+          price, 
+          thumbnail,
+          product_colors (
+            colors ( name )
+          )
+        )
       `,
       )
       .eq("user_id", userId);
@@ -21,8 +28,11 @@ export const getCart = async (req, res) => {
     const formattedCart = data
       .filter((item) => item.products !== null)
       .map((item) => {
-        // Lấy danh sách tên màu từ mảng colors
-        const colorNames = item.products.colors?.map((c) => c.name).join(", ") || "Mặc định";
+        const colorNames =
+          item.products.product_colors
+            ?.map((pc) => pc.colors?.name)
+            .filter(Boolean)
+            .join(", ") || "Mặc định";
 
         return {
           id: item.id,

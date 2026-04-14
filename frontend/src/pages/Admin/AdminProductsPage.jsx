@@ -11,6 +11,9 @@ import {
   Package,
   AlertCircle,
   CloudUpload,
+  ArrowUpDown,
+  RotateCcw,
+  LayoutGrid,
 } from "lucide-react";
 import { axiosClient } from "../../utils/axiosClient";
 import { supabase } from "../../config/supabase";
@@ -23,16 +26,21 @@ export const AdminProductsPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterRoom, setFilterRoom] = useState("");
+  const [filterStatus, setFilterStatus] = useState(""); // active, hidden
+  const [filterStock, setFilterStock] = useState(""); // in_stock, out_of_stock
+  const [sortOrder, setSortOrder] = useState("newest");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [btnLoading, setBtnLoading] = useState(false);
-  const [colorLibrary, setColorLibrary] = useState([]); // Danh mục màu từ server
+  const [colorLibrary, setColorLibrary] = useState([]);
 
   // File upload states
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
-  const [additionalImages, setAdditionalImages] = useState([]); // [{ id, url, file, isExisting }]
+  const [additionalImages, setAdditionalImages] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingAdditional, setIsDraggingAdditional] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -262,6 +270,31 @@ export const AdminProductsPage = () => {
     }
   };
 
+  const handleAdditionalDragOver = (e) => {
+    e.preventDefault();
+    setIsDraggingAdditional(true);
+  };
+
+  const handleAdditionalDragLeave = () => {
+    setIsDraggingAdditional(false);
+  };
+
+  const handleAdditionalDrop = (e) => {
+    e.preventDefault();
+    setIsDraggingAdditional(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const allImages = Array.from(files).every((file) =>
+        file.type.startsWith("image/"),
+      );
+      if (allImages) {
+        handleAdditionalFilesSelect(files);
+      } else {
+        toast.error("Một số file không phải là hình ảnh");
+      }
+    }
+  };
+
   const handleFileSelect = (file) => {
     if (!file) return;
     setSelectedFile(file);
@@ -277,7 +310,7 @@ export const AdminProductsPage = () => {
 
     const newImages = Array.from(files).map((file) => ({
       id: `new-${Date.now()}-${Math.random()}`,
-      url: URL.createObjectURL(file), // create temporary preview URL
+      url: URL.createObjectURL(file),
       file: file,
       isExisting: false,
     }));
@@ -295,14 +328,14 @@ export const AdminProductsPage = () => {
     const filePath = `products/${fileName}`;
 
     const { data, error } = await supabase.storage
-      .from("images")
+      .from("products")
       .upload(filePath, file);
 
     if (error) throw error;
 
     const {
       data: { publicUrl },
-    } = supabase.storage.from("images").getPublicUrl(filePath);
+    } = supabase.storage.from("products").getPublicUrl(filePath);
 
     return publicUrl;
   };
@@ -381,14 +414,69 @@ export const AdminProductsPage = () => {
     }
   };
 
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch = p.title
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      filterCategory === "" || p.category_id === filterCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const clearFilters = () => {
+    setSearchTerm("");
+    setFilterCategory("");
+    setFilterRoom("");
+    setFilterStatus("");
+    setFilterStock("");
+    setSortOrder("newest");
+  };
+
+  const filteredProducts = products
+    .filter((p) => {
+      // 1. Lọc theo từ khóa tìm kiếm
+      const matchesSearch =
+        !searchTerm ||
+        p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      // 2. Lọc theo danh mục (ép kiểu về string để so sánh ID)
+      const matchesCategory =
+        !filterCategory || String(p.category_id) === String(filterCategory);
+
+      // 3. Lọc theo phòng
+      const matchesRoom =
+        !filterRoom ||
+        p.product_rooms?.some(
+          (pr) => String(pr.rooms?.id) === String(filterRoom),
+        );
+
+      // 4. Lọc theo trạng thái hiển thị
+      const matchesStatus =
+        !filterStatus ||
+        (filterStatus === "active" ? p.is_active : !p.is_active);
+
+      // 5. Lọc theo tình trạng kho
+      const matchesStock =
+        !filterStock ||
+        (filterStock === "in_stock" ? p.stock > 0 : p.stock <= 0);
+
+      return (
+        matchesSearch &&
+        matchesCategory &&
+        matchesRoom &&
+        matchesStatus &&
+        matchesStock
+      );
+    })
+    .sort((a, b) => {
+      switch (sortOrder) {
+        case "price_high":
+          return b.price - a.price;
+        case "price_low":
+          return a.price - b.price;
+        case "stock_high":
+          return b.stock - a.stock;
+        case "stock_low":
+          return a.stock - b.stock;
+        case "oldest":
+          return new Date(a.created_at) - new Date(b.created_at);
+        case "newest":
+        default:
+          return new Date(b.created_at) - new Date(a.created_at);
+      }
+    });
 
   const formatPrice = (price) => `${Number(price).toLocaleString()} VND`;
 
@@ -413,34 +501,125 @@ export const AdminProductsPage = () => {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-4 items-center">
-          <div className="relative flex-1 min-w-[300px]">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              size={18}
-            />
-            <input
-              type="text"
-              placeholder="Tìm theo tên sản phẩm..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-[#2b4c4f] focus:ring-1 focus:ring-[#2b4c4f]"
-            />
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden mb-6">
+        <div className="p-4 border-b border-slate-100 bg-slate-50/20">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Search */}
+            <div className="lg:col-span-4 relative">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                size={18}
+              />
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo tên hoặc SKU..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/5 transition-all"
+              />
+            </div>
+
+            {/* Category */}
+            <div className="lg:col-span-2 relative">
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="w-full pl-3 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none appearance-none cursor-pointer">
+                <option value="">Tất cả danh mục</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+              <Filter
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                size={14}
+              />
+            </div>
+
+            {/* Room */}
+            <div className="lg:col-span-2 relative">
+              <select
+                value={filterRoom}
+                onChange={(e) => setFilterRoom(e.target.value)}
+                className="w-full pl-3 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none appearance-none cursor-pointer">
+                <option value="">Tất cả phòng</option>
+                {rooms.map((room) => (
+                  <option key={room.id} value={room.id}>
+                    {room.name}
+                  </option>
+                ))}
+              </select>
+              <LayoutGrid
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                size={14}
+              />
+            </div>
+
+            {/* Status */}
+            <div className="lg:col-span-2 relative">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full pl-3 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none appearance-none cursor-pointer">
+                <option value="">Trạng thái</option>
+                <option value="active">Đang hiển thị</option>
+                <option value="hidden">Đã ẩn</option>
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-slate-400 pointer-events-none" />
+            </div>
+
+            {/* Stock */}
+            <div className="lg:col-span-2 relative">
+              <select
+                value={filterStock}
+                onChange={(e) => setFilterStock(e.target.value)}
+                className="w-full pl-3 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none appearance-none cursor-pointer">
+                <option value="">Tình trạng kho</option>
+                <option value="in_stock">Còn hàng</option>
+                <option value="out_of_stock">Hết hàng</option>
+              </select>
+              <Package
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                size={14}
+              />
+            </div>
           </div>
-          <div className="flex items-center gap-2 min-w-[200px]">
-            <Filter size={18} className="text-slate-400" />
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-[#2b4c4f]">
-              <option value="">Tất cả danh mục</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+
+          <div className="flex flex-wrap items-center justify-between gap-4 mt-4 pt-4 border-t border-slate-100">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <ArrowUpDown size={16} className="text-slate-400" />
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Sắp xếp:
+                </span>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  className="bg-transparent text-sm font-bold text-slate-900 focus:outline-none cursor-pointer">
+                  <option value="newest">Mới nhất</option>
+                  <option value="oldest">Cũ nhất</option>
+                  <option value="price_high">Giá cao đến thấp</option>
+                  <option value="price_low">Giá thấp đến cao</option>
+                  <option value="stock_high">Kho (Nhiều đến ít)</option>
+                  <option value="stock_low">Kho (Ít đến nhiều)</option>
+                </select>
+              </div>
+            </div>
+
+            {(searchTerm ||
+              filterCategory ||
+              filterRoom ||
+              filterStatus ||
+              filterStock) && (
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-2 text-xs font-bold text-red-500 hover:text-red-600 transition-colors uppercase tracking-wider">
+                <RotateCcw size={14} />
+                Xóa bộ lọc
+              </button>
+            )}
           </div>
         </div>
 
@@ -798,7 +977,15 @@ export const AdminProductsPage = () => {
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                       Thông tin ảnh phụ (Bộ sưu tập)
                     </label>
-                    <div className="grid grid-cols-4 gap-3 mb-4">
+                    <div
+                      className={`grid grid-cols-4 gap-3 mb-4 p-4 border-2 border-dashed rounded-xl transition-all ${
+                        isDraggingAdditional
+                          ? "border-[#2b4c4f] bg-[#2b4c4f]/5"
+                          : "border-transparent"
+                      }`}
+                      onDragOver={handleAdditionalDragOver}
+                      onDragLeave={handleAdditionalDragLeave}
+                      onDrop={handleAdditionalDrop}>
                       {additionalImages.map((img) => (
                         <div
                           key={img.id}
@@ -818,8 +1005,8 @@ export const AdminProductsPage = () => {
                       ))}
                       <label className="aspect-square rounded-lg border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:border-[#2b4c4f] hover:bg-slate-50 transition-all">
                         <Plus size={20} className="text-slate-400" />
-                        <span className="text-[9px] font-bold text-slate-400 mt-1">
-                          THÊM ẢNH
+                        <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase">
+                          Thêm ảnh
                         </span>
                         <input
                           type="file"

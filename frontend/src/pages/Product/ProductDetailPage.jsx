@@ -64,7 +64,9 @@ export const ProductDetailPage = () => {
 
         if (user?.id) {
           try {
-            const favRes = await axiosClient.get(`/wishlist/check/${user.id}/${productData.id}`);
+            const favRes = await axiosClient.get(
+              `/wishlist/check/${user.id}/${productData.id}`,
+            );
             setIsFavorite(favRes.data.isFavorite);
           } catch (error) {
             console.error("Lỗi kiểm tra wishlist", error);
@@ -92,7 +94,11 @@ export const ProductDetailPage = () => {
         product_id: product.id,
       });
       setIsFavorite(res.data.isFavorite);
-      toast.success(res.data.message === "Added to wishlist" ? "Đã thêm vào mục yêu thích" : "Đã xoá khỏi mục yêu thích");
+      toast.success(
+        res.data.message === "Added to wishlist"
+          ? "Đã thêm vào mục yêu thích"
+          : "Đã xoá khỏi mục yêu thích",
+      );
     } catch (error) {
       console.error("Lỗi cập nhật wishlist", error);
       toast.error("Đã xảy ra lỗi, vui lòng thử lại sau.");
@@ -232,14 +238,16 @@ export const ProductDetailPage = () => {
             {product.product_colors && product.product_colors.length > 0 && (
               <div className="mb-8">
                 <div className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">
-                  MÀU SẮC & PHONG THỦY:
+                  MÀU SẮC:
                 </div>
                 <div className="flex flex-wrap gap-x-6 gap-y-4">
                   {product.product_colors.map((pc, idx) => {
                     const color = pc.colors;
                     if (!color) return null;
                     return (
-                      <div key={idx} className="flex items-center gap-3 bg-slate-50/50 pr-4 pl-1 py-1 rounded-full border border-slate-100 hover:border-primary/20 transition-colors">
+                      <div
+                        key={idx}
+                        className="flex items-center gap-3 bg-slate-50/50 pr-4 pl-1 py-1 rounded-full border border-slate-100 hover:border-primary/20 transition-colors">
                         <div
                           className="w-8 h-8 rounded-full border border-black/10 shadow-sm"
                           style={{ backgroundColor: color.hex }}
@@ -249,14 +257,19 @@ export const ProductDetailPage = () => {
                           <span className="text-[11px] font-bold text-slate-900 leading-none mb-1">
                             {color.name}
                           </span>
-                          <span className={`text-[9px] font-medium leading-none ${
-                            color.element === 'Kim' ? 'text-slate-500' :
-                            color.element === 'Mộc' ? 'text-green-600' :
-                            color.element === 'Thủy' ? 'text-blue-600' :
-                            color.element === 'Hỏa' ? 'text-red-600' :
-                            'text-amber-700'
-                          }`}>
-                            Hợp mệnh {color.element}
+                          <span
+                            className={`text-[9px] font-medium leading-none ${
+                              color.element === "Kim"
+                                ? "text-slate-500"
+                                : color.element === "Mộc"
+                                  ? "text-green-600"
+                                  : color.element === "Thủy"
+                                    ? "text-blue-600"
+                                    : color.element === "Hỏa"
+                                      ? "text-red-600"
+                                      : "text-amber-700"
+                            }`}>
+                            {color.element}
                           </span>
                         </div>
                       </div>
@@ -299,14 +312,16 @@ export const ProductDetailPage = () => {
                 Thêm vào giỏ hàng
               </button>
 
-              <button 
+              <button
                 onClick={toggleWishlist}
                 className={`w-12 h-12 flex-shrink-0 flex items-center justify-center border transition-colors rounded-sm ${
-                  isFavorite 
-                    ? "border-red-500 text-red-500 bg-red-50" 
+                  isFavorite
+                    ? "border-red-500 text-red-500 bg-red-50"
                     : "border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-500"
                 }`}>
-                <Heart className={`w-5 h-5 ${isFavorite ? "fill-red-500" : ""}`} />
+                <Heart
+                  className={`w-5 h-5 ${isFavorite ? "fill-red-500" : ""}`}
+                />
               </button>
             </div>
 

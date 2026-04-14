@@ -23,13 +23,17 @@ import { PersonalInfoPage } from "./pages/Profile/PersonalInfoPage.jsx";
 import { ShippingAddressPage } from "./pages/Profile/ShippingAddressPage.jsx";
 import { WishlistPage } from "./pages/Profile/WishlistPage.jsx";
 import { AdminRoute } from "./components/auth/AdminRoute.jsx";
+import { StaffRoute } from "./components/auth/StaffRoute.jsx";
 import { AdminLoginPage } from "./pages/Admin/AdminLoginPage.jsx";
 import { AdminLayout } from "./components/layout/AdminLayout.jsx";
+import { StaffLayout } from "./components/layout/StaffLayout.jsx";
 import { AdminDashboard } from "./pages/Admin/AdminDashboard.jsx";
+import { StaffOrdersPage } from "./pages/Staff/StaffOrdersPage.jsx";
 import { AdminPermissionsPage } from "./pages/Admin/AdminPermissionsPage.jsx";
 import { AdminOrdersPage } from "./pages/Admin/AdminOrdersPage.jsx";
 import { AdminProductsPage } from "./pages/Admin/AdminProductsPage";
 import { AdminCategoriesPage } from "./pages/Admin/AdminCategoriesPage";
+import { AdminCustomersPage } from "./pages/Admin/AdminCustomersPage";
 
 export default function App() {
   const { cartItems } = useCart();
@@ -37,7 +41,8 @@ export default function App() {
   const hideHeaderFooterPaths = ["/login", "/register", "/vnpay-return"];
   const isAuthPage =
     hideHeaderFooterPaths.includes(location.pathname) ||
-    location.pathname.startsWith("/admin");
+    location.pathname.startsWith("/admin") ||
+    location.pathname.startsWith("/staff");
   return (
     <div className="min-h-screen font-sans bg-white text-slate-900 flex flex-col">
       {!isAuthPage && (
@@ -91,6 +96,20 @@ export default function App() {
             <Route path="orders" element={<AdminOrdersPage />} />
             <Route path="products" element={<AdminProductsPage />} />
             <Route path="categories" element={<AdminCategoriesPage />} />
+            <Route path="customers" element={<AdminCustomersPage />} />
+          </Route>
+
+          {/* staff */}
+          <Route
+            path="/staff"
+            element={
+              <StaffRoute>
+                <StaffLayout />
+              </StaffRoute>
+            }>
+            <Route index element={<StaffOrdersPage />} />
+            <Route path="orders" element={<StaffOrdersPage />} />
+            <Route path="dashboard" element={<StaffOrdersPage />} />
           </Route>
         </Routes>
       </main>

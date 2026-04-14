@@ -8,6 +8,7 @@ import authRoutes from "./routes/authRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import wishlistRoutes from "./routes/wishlistRoutes.js";
 import colorRoutes from "./routes/colorRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 const app = express();
 
 app.use(cors());
@@ -20,6 +21,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/colors", colorRoutes);
+app.use("/api/users", userRoutes);
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(` ${PORT} `);
