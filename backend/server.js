@@ -9,6 +9,10 @@ import orderRoutes from "./routes/orderRoutes.js";
 import wishlistRoutes from "./routes/wishlistRoutes.js";
 import colorRoutes from "./routes/colorRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
+import attendanceRoutes from "./routes/attendanceRoutes.js";
+
+
 const app = express();
 
 app.use(cors());
@@ -22,6 +26,10 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/colors", colorRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/api/attendance", attendanceRoutes);
+
+
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(` ${PORT} `);

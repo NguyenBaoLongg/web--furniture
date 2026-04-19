@@ -11,7 +11,10 @@ import {
   Settings,
   Bell,
   Search,
+  Clock,
+  Calendar,
 } from "lucide-react";
+
 import { useAuth } from "../../context/AuthContext";
 
 export const StaffSidebar = () => {
@@ -22,11 +25,10 @@ export const StaffSidebar = () => {
     { name: "Quản lý đơn hàng", icon: Package, path: "/staff/orders" },
     { name: "Hỗ trợ khách hàng", icon: Headphones, path: "/staff/support" },
     { name: "Kiểm tra kho hàng", icon: Box, path: "/staff/inventory" },
+    { name: "Lịch làm việc", icon: Clock, path: "/staff/attendance" },
   ];
 
-  const reportMenuItems = [
-    { name: "Doanh thu tuần", icon: BarChart2, path: "/staff/reports/revenue" },
-  ];
+  const reportMenuItems = [];
 
   return (
     <div className="w-72 bg-white border-r border-slate-100 flex flex-col h-screen font-sans">
@@ -56,37 +58,6 @@ export const StaffSidebar = () => {
           </h3>
           <nav className="space-y-1">
             {mainMenuItems.map((item) => {
-              const isActive = location.pathname === item.path;
-              const Icon = item.icon;
-
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all ${
-                    isActive
-                      ? "bg-[#2b4c4f] text-white shadow-xl shadow-[#2b4c4f]/20 scale-[1.02]"
-                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                  }`}>
-                  <Icon
-                    size={20}
-                    strokeWidth={isActive ? 2.5 : 2}
-                    className={isActive ? "text-white" : "text-slate-400"}
-                  />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Reports Section */}
-        <div>
-          <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">
-            Báo cáo
-          </h3>
-          <nav className="space-y-1">
-            {reportMenuItems.map((item) => {
               const isActive = location.pathname === item.path;
               const Icon = item.icon;
 

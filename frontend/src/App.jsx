@@ -34,6 +34,13 @@ import { AdminOrdersPage } from "./pages/Admin/AdminOrdersPage.jsx";
 import { AdminProductsPage } from "./pages/Admin/AdminProductsPage";
 import { AdminCategoriesPage } from "./pages/Admin/AdminCategoriesPage";
 import { AdminCustomersPage } from "./pages/Admin/AdminCustomersPage";
+import { ChatWidget } from "./components/chat/ChatWidget.jsx";
+import { StaffSupportPage } from "./pages/Staff/StaffSupportPage.jsx";
+import { StaffInventoryPage } from "./pages/Staff/StaffInventoryPage.jsx";
+import { StaffAttendancePage } from "./pages/Staff/StaffAttendancePage.jsx";
+
+
+
 
 export default function App() {
   const { cartItems } = useCart();
@@ -109,11 +116,15 @@ export default function App() {
             }>
             <Route index element={<StaffOrdersPage />} />
             <Route path="orders" element={<StaffOrdersPage />} />
+            <Route path="support" element={<StaffSupportPage />} />
+            <Route path="inventory" element={<StaffInventoryPage />} />
+            <Route path="attendance" element={<StaffAttendancePage />} />
             <Route path="dashboard" element={<StaffOrdersPage />} />
           </Route>
         </Routes>
       </main>
       {!isAuthPage && <Footer />}
+      {!isAuthPage && <ChatWidget />}
     </div>
   );
 }

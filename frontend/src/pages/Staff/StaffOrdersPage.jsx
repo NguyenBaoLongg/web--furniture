@@ -166,17 +166,21 @@ export const StaffOrdersPage = () => {
   useEffect(() => {
     const getProducts = async () => {
       if (!isCreateModalOpen) return;
-      
+
       let query = supabase
         .from("products")
         .select("id, title, price, thumbnail, stock, sku")
         .eq("is_active", true);
 
       if (productSearch.trim().length >= 2) {
-        query = query.or(`title.ilike.%${productSearch}%,sku.ilike.%${productSearch}%`);
+        query = query.or(
+          `title.ilike.%${productSearch}%,sku.ilike.%${productSearch}%`,
+        );
       }
 
-      const { data } = await query.order("title", { ascending: true }).limit(20);
+      const { data } = await query
+        .order("title", { ascending: true })
+        .limit(20);
       setProductResults(data || []);
     };
 
@@ -286,7 +290,11 @@ export const StaffOrdersPage = () => {
 
   const handleSubmitManualOrder = async () => {
     try {
-      if (!manualOrder.customer.name || !manualOrder.customer.phone || !manualOrder.customer.street) {
+      if (
+        !manualOrder.customer.name ||
+        !manualOrder.customer.phone ||
+        !manualOrder.customer.street
+      ) {
         toast.warning("Vui lòng nhập đầy đủ thông tin khách nhận hàng");
         return;
       }
@@ -309,19 +317,24 @@ export const StaffOrdersPage = () => {
         // Tạo nhanh user nếu chưa có
         const { data: newUser, error: userError } = await supabase
           .from("users")
-          .insert([{ 
-            full_name: manualOrder.customer.name, 
-            phone: manualOrder.customer.phone,
-            role: 'customer' 
-          }])
+          .insert([
+            {
+              full_name: manualOrder.customer.name,
+              phone: manualOrder.customer.phone,
+              role: "customer",
+            },
+          ])
           .select()
           .single();
-        
+
         if (userError) throw userError;
         targetUserId = newUser.id;
       }
 
-      const totalPrice = manualOrder.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+      const totalPrice = manualOrder.items.reduce(
+        (sum, i) => sum + i.price * i.quantity,
+        0,
+      );
 
       // 2. Gọi API tạo đơn hàng (sử dụng cấu trúc tương tự orderController)
       const orderPayload = {
@@ -331,40 +344,46 @@ export const StaffOrdersPage = () => {
           phone_number: manualOrder.customer.phone,
           street_address: manualOrder.customer.street,
           ward: manualOrder.customer.ward,
-          city: manualOrder.customer.city
+          city: manualOrder.customer.city,
         },
-        items: manualOrder.items.map(i => ({
+        items: manualOrder.items.map((i) => ({
           product_id: i.id,
           quantity: i.quantity,
-          price: i.price
+          price: i.price,
         })),
         total_price: totalPrice,
         payment_method: manualOrder.paymentMethod,
-        note: manualOrder.note
+        note: manualOrder.note,
       };
 
       // Mocking the backend call via direct Supabase or custom fetch if needed
       // Để đồng bộ với project, tôi sẽ dùng cấu trúc của orderController
-      const { data: order, error: orderError } = await supabase.from('orders').insert([{
-        user_id: targetUserId,
-        address_id: null, // Sẽ được xử lý bởi backend hoặc trigger, ở đây chúng ta fill trực tiếp
-        total_price: totalPrice,
-        status: 'pending',
-        payment_method: manualOrder.paymentMethod,
-        payment_status: 'unpaid',
-        note: manualOrder.note
-      }]).select().single();
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert([
+          {
+            user_id: targetUserId,
+            address_id: null, // Sẽ được xử lý bởi backend hoặc trigger, ở đây chúng ta fill trực tiếp
+            total_price: totalPrice,
+            status: "pending",
+            payment_method: manualOrder.paymentMethod,
+            payment_status: "unpaid",
+            note: manualOrder.note,
+          },
+        ])
+        .select()
+        .single();
 
       if (orderError) throw orderError;
 
       // Chèn items
-      const { error: itemsError } = await supabase.from('order_items').insert(
-        manualOrder.items.map(i => ({
+      const { error: itemsError } = await supabase.from("order_items").insert(
+        manualOrder.items.map((i) => ({
           order_id: order.id,
           product_id: i.id,
           quantity: i.quantity,
-          price: i.price
-        }))
+          price: i.price,
+        })),
       );
 
       if (itemsError) throw itemsError;
@@ -375,28 +394,38 @@ export const StaffOrdersPage = () => {
           .from("products")
           .update({ stock: item.stock - item.quantity })
           .eq("id", item.id);
-        
-        if (stockError) console.error(`Lỗi cập nhật kho cho sp ${item.id}:`, stockError);
+
+        if (stockError)
+          console.error(`Lỗi cập nhật kho cho sp ${item.id}:`, stockError);
       }
 
       // 5. Cập nhật địa chỉ (Tạo entry mới hoặc dùng có sẵn)
-      await supabase.from('user_addresses').insert([{
-        user_id: targetUserId,
-        receiver_name: manualOrder.customer.name,
-        phone_number: manualOrder.customer.phone,
-        street_address: manualOrder.customer.street,
-        ward: manualOrder.customer.ward,
-        city: manualOrder.customer.city,
-        is_default: false
-      }]);
+      await supabase.from("user_addresses").insert([
+        {
+          user_id: targetUserId,
+          receiver_name: manualOrder.customer.name,
+          phone_number: manualOrder.customer.phone,
+          street_address: manualOrder.customer.street,
+          ward: manualOrder.customer.ward,
+          city: manualOrder.customer.city,
+          is_default: false,
+        },
+      ]);
 
       toast.success("Tạo đơn hàng thành công và đã cập nhật kho!");
       setIsCreateModalOpen(false);
       setManualOrder({
         items: [],
-        customer: { name: "", phone: "", email: "", street: "", ward: "", city: "Hà Nội" },
+        customer: {
+          name: "",
+          phone: "",
+          email: "",
+          street: "",
+          ward: "",
+          city: "Hà Nội",
+        },
         paymentMethod: "cod",
-        note: ""
+        note: "",
       });
       fetchOrders();
     } catch (error) {
@@ -404,7 +433,6 @@ export const StaffOrdersPage = () => {
       toast.error("Lỗi: " + error.message);
     }
   };
-
 
   const filteredOrders = orders.filter((o) => {
     const matchesSearch =
@@ -447,13 +475,6 @@ export const StaffOrdersPage = () => {
                 className="pl-12 pr-6 py-3.5 bg-slate-100 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-[#2b4c4f]/20 focus:bg-white transition-all w-full md:w-80 shadow-inner"
               />
             </div>
-            <button className="p-3.5 bg-slate-100 rounded-2xl text-slate-500 hover:bg-slate-200 transition-all border border-slate-200 shadow-sm relative">
-              <Bell size={20} />
-              <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 border-2 border-slate-100 rounded-full"></span>
-            </button>
-            <button className="p-3.5 bg-slate-100 rounded-2xl text-slate-500 hover:bg-slate-200 transition-all border border-slate-200 shadow-sm">
-              <Settings size={20} />
-            </button>
           </div>
         </div>
 
@@ -541,10 +562,9 @@ export const StaffOrdersPage = () => {
             )}
           </div>
 
-          <button 
+          <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2 bg-[#2b4c4f] text-white px-8 py-4 rounded-2xl font-black text-sm shadow-xl shadow-[#2b4c4f]/20 hover:scale-105 transition-all"
-          >
+            className="flex items-center gap-2 bg-[#2b4c4f] text-white px-8 py-4 rounded-2xl font-black text-sm shadow-xl shadow-[#2b4c4f]/20 hover:scale-105 transition-all">
             <Plus size={18} strokeWidth={3} />
             Tạo đơn thủ công
           </button>
@@ -964,15 +984,12 @@ export const StaffOrdersPage = () => {
       </div>
       {/* Manual Order Creation Modal */}
       <div
-        className={`fixed inset-0 z-[100] transition-opacity duration-500 ${isCreateModalOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
-      >
-        <div 
-          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          onClick={() => setIsCreateModalOpen(false)}
-        ></div>
+        className={`fixed inset-0 z-[100] transition-opacity duration-500 ${isCreateModalOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
         <div
-          className={`absolute right-0 top-0 h-full w-full max-w-4xl bg-[#fafafa] shadow-2xl transition-transform duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] overflow-hidden flex flex-col ${isCreateModalOpen ? "translate-x-0" : "translate-x-full"}`}
-        >
+          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          onClick={() => setIsCreateModalOpen(false)}></div>
+        <div
+          className={`absolute right-0 top-0 h-full w-full max-w-4xl bg-[#fafafa] shadow-2xl transition-transform duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] overflow-hidden flex flex-col ${isCreateModalOpen ? "translate-x-0" : "translate-x-full"}`}>
           {/* Modal Header */}
           <div className="p-8 bg-white border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -990,8 +1007,7 @@ export const StaffOrdersPage = () => {
             </div>
             <button
               onClick={() => setIsCreateModalOpen(false)}
-              className="p-3 bg-slate-100 rounded-2xl text-slate-400 hover:bg-slate-200 transition-all"
-            >
+              className="p-3 bg-slate-100 rounded-2xl text-slate-400 hover:bg-slate-200 transition-all">
               <X size={20} />
             </button>
           </div>
@@ -1008,10 +1024,13 @@ export const StaffOrdersPage = () => {
                       Thông tin khách hàng
                     </h3>
                   </div>
-                  
+
                   <div className="space-y-4">
                     <div className="relative group">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <Search
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                        size={16}
+                      />
                       <input
                         type="text"
                         placeholder="Tìm SĐT hoặc Tên khách cũ..."
@@ -1021,29 +1040,35 @@ export const StaffOrdersPage = () => {
                       />
                       {userResults.length > 0 && (
                         <div className="absolute top-full left-0 w-full bg-white mt-2 rounded-2xl shadow-2xl border border-slate-100 z-10 overflow-hidden">
-                          {userResults.map(u => (
+                          {userResults.map((u) => (
                             <button
                               key={u.id}
                               onClick={() => {
-                                setManualOrder(prev => ({
+                                setManualOrder((prev) => ({
                                   ...prev,
                                   customer: {
                                     ...prev.customer,
                                     name: u.full_name,
                                     phone: u.phone || "",
-                                    email: u.email || ""
-                                  }
+                                    email: u.email || "",
+                                  },
                                 }));
                                 setUserSearch("");
                                 setUserResults([]);
                               }}
-                              className="w-full p-4 text-left hover:bg-slate-50 flex items-center justify-between group transition-colors"
-                            >
+                              className="w-full p-4 text-left hover:bg-slate-50 flex items-center justify-between group transition-colors">
                               <div>
-                                <p className="text-sm font-black text-slate-900">{u.full_name}</p>
-                                <p className="text-[10px] font-bold text-slate-400">{u.phone || u.email}</p>
+                                <p className="text-sm font-black text-slate-900">
+                                  {u.full_name}
+                                </p>
+                                <p className="text-[10px] font-bold text-slate-400">
+                                  {u.phone || u.email}
+                                </p>
                               </div>
-                              <ArrowRight size={14} className="text-slate-300 group-hover:text-[#2b4c4f] transition-colors" />
+                              <ArrowRight
+                                size={14}
+                                className="text-slate-300 group-hover:text-[#2b4c4f] transition-colors"
+                              />
                             </button>
                           ))}
                         </div>
@@ -1052,52 +1077,102 @@ export const StaffOrdersPage = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Họ tên nhận hàng</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2">
+                          Họ tên nhận hàng
+                        </label>
                         <input
                           type="text"
                           value={manualOrder.customer.name}
-                          onChange={(e) => setManualOrder(prev=>({...prev, customer: {...prev.customer, name: e.target.value}}))}
+                          onChange={(e) =>
+                            setManualOrder((prev) => ({
+                              ...prev,
+                              customer: {
+                                ...prev.customer,
+                                name: e.target.value,
+                              },
+                            }))
+                          }
                           className="w-full px-5 py-3.5 bg-white border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#2b4c4f]/10 outline-none"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Số điện thoại</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2">
+                          Số điện thoại
+                        </label>
                         <input
                           type="text"
                           value={manualOrder.customer.phone}
-                          onChange={(e) => setManualOrder(prev=>({...prev, customer: {...prev.customer, phone: e.target.value}}))}
+                          onChange={(e) =>
+                            setManualOrder((prev) => ({
+                              ...prev,
+                              customer: {
+                                ...prev.customer,
+                                phone: e.target.value,
+                              },
+                            }))
+                          }
                           className="w-full px-5 py-3.5 bg-white border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#2b4c4f]/10 outline-none"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Địa chỉ chi tiết</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-2">
+                        Địa chỉ chi tiết
+                      </label>
                       <input
                         type="text"
                         placeholder="Số nhà, tên đường..."
                         value={manualOrder.customer.street}
-                        onChange={(e) => setManualOrder(prev=>({...prev, customer: {...prev.customer, street: e.target.value}}))}
+                        onChange={(e) =>
+                          setManualOrder((prev) => ({
+                            ...prev,
+                            customer: {
+                              ...prev.customer,
+                              street: e.target.value,
+                            },
+                          }))
+                        }
                         className="w-full px-5 py-3.5 bg-white border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#2b4c4f]/10 outline-none"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Phường/Xã</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2">
+                          Phường/Xã
+                        </label>
                         <input
                           type="text"
                           value={manualOrder.customer.ward}
-                          onChange={(e) => setManualOrder(prev=>({...prev, customer: {...prev.customer, ward: e.target.value}}))}
+                          onChange={(e) =>
+                            setManualOrder((prev) => ({
+                              ...prev,
+                              customer: {
+                                ...prev.customer,
+                                ward: e.target.value,
+                              },
+                            }))
+                          }
                           className="w-full px-5 py-3.5 bg-white border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#2b4c4f]/10 outline-none"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Thành phố</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2">
+                          Thành phố
+                        </label>
                         <input
                           type="text"
                           value={manualOrder.customer.city}
-                          onChange={(e) => setManualOrder(prev=>({...prev, customer: {...prev.customer, city: e.target.value}}))}
+                          onChange={(e) =>
+                            setManualOrder((prev) => ({
+                              ...prev,
+                              customer: {
+                                ...prev.customer,
+                                city: e.target.value,
+                              },
+                            }))
+                          }
                           className="w-full px-5 py-3.5 bg-white border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#2b4c4f]/10 outline-none"
                         />
                       </div>
@@ -1117,9 +1192,13 @@ export const StaffOrdersPage = () => {
                       placeholder="Ghi chú đơn hàng (ví dụ: Giao sau giờ hành chính...)"
                       rows="3"
                       value={manualOrder.note}
-                      onChange={(e) => setManualOrder(prev=>({...prev, note: e.target.value}))}
-                      className="w-full px-5 py-4 bg-white border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#2b4c4f]/10 outline-none resize-none"
-                    ></textarea>
+                      onChange={(e) =>
+                        setManualOrder((prev) => ({
+                          ...prev,
+                          note: e.target.value,
+                        }))
+                      }
+                      className="w-full px-5 py-4 bg-white border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#2b4c4f]/10 outline-none resize-none"></textarea>
                   </div>
                 </section>
               </div>
@@ -1136,80 +1215,121 @@ export const StaffOrdersPage = () => {
                     </div>
                   </div>
 
-                    <div className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <input
-                        type="text"
-                        placeholder="Tìm tên sản phẩm để thêm..."
-                        value={productSearch}
-                        onChange={(e) => setProductSearch(e.target.value)}
-                        className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-[#2b4c4f]/10 outline-none transition-all"
-                      />
-                      {(productSearch || productResults.length > 0) && (
-                        <button 
-                          onClick={() => {
-                            setProductSearch("");
-                            setProductResults([]);
-                          }}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-lg text-slate-400 transition-colors"
-                        >
-                          <X size={14} />
-                        </button>
-                      )}
-                      {productResults.length > 0 && (
-                        <div className="absolute top-full left-0 w-full bg-white mt-2 rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden flex flex-col max-h-[400px]">
-                          <div className="flex-1 overflow-y-auto custom-scrollbar">
-                            {productResults.map(p => (
-                              <button
-                                key={p.id}
-                                onClick={() => handleAddItem(p)}
-                                className="w-full p-4 text-left hover:bg-slate-50 flex items-center gap-4 transition-colors"
-                              >
-                                <img src={p.thumbnail} className="w-10 h-10 rounded-lg object-cover bg-slate-50" />
-                                <div className="flex-1">
-                                  <p className="text-sm font-black text-slate-900">{p.title}</p>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{p.sku || "N/A"}</span>
-                                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">Kho: {p.stock}</span>
-                                    <span className="text-[10px] font-bold text-[#2b4c4f]">{formatPrice(p.price)}</span>
-                                  </div>
+                  <div className="relative">
+                    <Search
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                      size={16}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Tìm tên sản phẩm để thêm..."
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-[#2b4c4f]/10 outline-none transition-all"
+                    />
+                    {(productSearch || productResults.length > 0) && (
+                      <button
+                        onClick={() => {
+                          setProductSearch("");
+                          setProductResults([]);
+                        }}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-lg text-slate-400 transition-colors">
+                        <X size={14} />
+                      </button>
+                    )}
+                    {productResults.length > 0 && (
+                      <div className="absolute top-full left-0 w-full bg-white mt-2 rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden flex flex-col max-h-[400px]">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                          {productResults.map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() => handleAddItem(p)}
+                              className="w-full p-4 text-left hover:bg-slate-50 flex items-center gap-4 transition-colors">
+                              <img
+                                src={p.thumbnail}
+                                className="w-10 h-10 rounded-lg object-cover bg-slate-50"
+                              />
+                              <div className="flex-1">
+                                <p className="text-sm font-black text-slate-900">
+                                  {p.title}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    {p.sku || "N/A"}
+                                  </span>
+                                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
+                                    Kho: {p.stock}
+                                  </span>
+                                  <span className="text-[10px] font-bold text-[#2b4c4f]">
+                                    {formatPrice(p.price)}
+                                  </span>
                                 </div>
-                                <Plus size={16} className="text-slate-300" />
-                              </button>
-                            ))}
-                          </div>
-                          <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                              Nhấn nút (X) ở ô tìm kiếm để đóng danh sách
-                            </p>
-                          </div>
+                              </div>
+                              <Plus size={16} className="text-slate-300" />
+                            </button>
+                          ))}
                         </div>
-                      )}
-                    </div>
+                        <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            Nhấn nút (X) ở ô tìm kiếm để đóng danh sách
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                     {manualOrder.items.length === 0 ? (
                       <div className="py-10 text-center space-y-3">
-                        <Package size={40} className="mx-auto text-slate-200" strokeWidth={1} />
-                        <p className="text-xs font-bold text-slate-400">Giỏ hàng đang trống</p>
+                        <Package
+                          size={40}
+                          className="mx-auto text-slate-200"
+                          strokeWidth={1}
+                        />
+                        <p className="text-xs font-bold text-slate-400">
+                          Giỏ hàng đang trống
+                        </p>
                       </div>
                     ) : (
-                      manualOrder.items.map(item => (
-                        <div key={item.id} className="flex items-center gap-4 p-3 bg-slate-50 rounded-2xl">
-                          <img src={item.thumbnail} className="w-12 h-12 rounded-xl object-cover bg-white shadow-sm" />
+                      manualOrder.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-4 p-3 bg-slate-50 rounded-2xl">
+                          <img
+                            src={item.thumbnail}
+                            className="w-12 h-12 rounded-xl object-cover bg-white shadow-sm"
+                          />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-black text-slate-900 truncate">{item.title}</p>
+                            <p className="text-xs font-black text-slate-900 truncate">
+                              {item.title}
+                            </p>
                             <div className="flex items-center gap-2">
-                              <span className="text-[9px] font-bold text-slate-400 uppercase">{item.sku || "N/A"}</span>
-                              <span className="text-[10px] font-bold text-slate-400">{formatPrice(item.price)}</span>
+                              <span className="text-[9px] font-bold text-slate-400 uppercase">
+                                {item.sku || "N/A"}
+                              </span>
+                              <span className="text-[10px] font-bold text-slate-400">
+                                {formatPrice(item.price)}
+                              </span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-xl shadow-sm">
-                            <button onClick={() => handleUpdateQty(item.id, -1)} className="p-1 text-slate-400 hover:text-slate-900"><X size={12} /></button>
-                            <span className="text-xs font-black text-slate-900 w-4 text-center">{item.quantity}</span>
-                            <button onClick={() => handleUpdateQty(item.id, 1)} className="p-1 text-slate-400 hover:text-slate-900"><Plus size={12} /></button>
+                            <button
+                              onClick={() => handleUpdateQty(item.id, -1)}
+                              className="p-1 text-slate-400 hover:text-slate-900">
+                              <X size={12} />
+                            </button>
+                            <span className="text-xs font-black text-slate-900 w-4 text-center">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() => handleUpdateQty(item.id, 1)}
+                              className="p-1 text-slate-400 hover:text-slate-900">
+                              <Plus size={12} />
+                            </button>
                           </div>
-                          <button onClick={() => handleRemoveItem(item.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                          <button
+                            onClick={() => handleRemoveItem(item.id)}
+                            className="p-2 text-slate-300 hover:text-red-500 transition-colors">
                             <X size={16} />
                           </button>
                         </div>
@@ -1219,20 +1339,35 @@ export const StaffOrdersPage = () => {
 
                   <div className="pt-6 border-t border-slate-100 space-y-4">
                     <div className="flex justify-between items-center text-slate-400">
-                      <span className="text-xs font-bold uppercase tracking-widest">Tạm tính</span>
-                      <span className="font-bold">{formatPrice(manualOrder.items.reduce((s, i) => s + i.price * i.quantity, 0))}</span>
+                      <span className="text-xs font-bold uppercase tracking-widest">
+                        Tạm tính
+                      </span>
+                      <span className="font-bold">
+                        {formatPrice(
+                          manualOrder.items.reduce(
+                            (s, i) => s + i.price * i.quantity,
+                            0,
+                          ),
+                        )}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-black text-slate-900 uppercase tracking-widest leading-none">Tổng thanh toán</span>
+                      <span className="text-sm font-black text-slate-900 uppercase tracking-widest leading-none">
+                        Tổng thanh toán
+                      </span>
                       <span className="text-2xl font-black text-[#2b4c4f] tracking-tight">
-                        {formatPrice(manualOrder.items.reduce((s, i) => s + i.price * i.quantity, 0))}
+                        {formatPrice(
+                          manualOrder.items.reduce(
+                            (s, i) => s + i.price * i.quantity,
+                            0,
+                          ),
+                        )}
                       </span>
                     </div>
                     <button
                       onClick={handleSubmitManualOrder}
                       disabled={manualOrder.items.length === 0}
-                      className="w-full bg-[#2b4c4f] text-white py-5 rounded-3xl font-black text-sm shadow-xl shadow-[#2b4c4f]/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
+                      className="w-full bg-[#2b4c4f] text-white py-5 rounded-3xl font-black text-sm shadow-xl shadow-[#2b4c4f]/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                       Xác nhận & Tạo đơn hàng
                     </button>
                   </div>
