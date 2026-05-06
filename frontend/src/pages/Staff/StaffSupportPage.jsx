@@ -96,7 +96,10 @@ export const StaffSupportPage = () => {
                 .single();
 
               if (fullMsg) {
-                setMessages((p) => [...p, fullMsg]);
+                setMessages((p) => {
+                  if (p.find((m) => m.id === fullMsg.id)) return p;
+                  return [...p, fullMsg];
+                });
                 setConversations((convs) =>
                   convs.map((c) =>
                     c.id === selectedConv.id

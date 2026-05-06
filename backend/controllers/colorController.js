@@ -1,4 +1,5 @@
 import { supabase } from "../config/supabase.js";
+import { calculateFengShui } from "../utils/colorUtils.js";
 
 export const getAllColors = async (req, res) => {
   try {
@@ -17,7 +18,10 @@ export const getAllColors = async (req, res) => {
 
 export const createColor = async (req, res) => {
   try {
-    const { name, hex, element } = req.body;
+    const { name, hex, element: manualElement } = req.body;
+
+    // Tự động tính toán mệnh nếu không được cung cấp thủ công
+    const element = manualElement || calculateFengShui(hex);
 
     const { data, error } = await supabase
       .from("colors")
@@ -44,7 +48,10 @@ export const createColor = async (req, res) => {
 export const updateColor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, hex, element } = req.body;
+    const { name, hex, element: manualElement } = req.body;
+
+    // Tự động tính toán mệnh khi cập nhật
+    const element = manualElement || calculateFengShui(hex);
 
     const { data, error } = await supabase
       .from("colors")

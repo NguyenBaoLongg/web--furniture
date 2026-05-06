@@ -1,4 +1,5 @@
 import express from "express";
+import "dotenv/config";
 import cors from "cors";
 import productRoutes from "./routes/productRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
@@ -11,7 +12,7 @@ import colorRoutes from "./routes/colorRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
-
+import fengshuiRoutes from "./routes/fengshuiRoutes.js";
 
 const app = express();
 
@@ -28,7 +29,7 @@ app.use("/api/colors", colorRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/attendance", attendanceRoutes);
-
+app.use("/api/fengshui", fengshuiRoutes);
 
 const PORT = 5000;
 app.listen(PORT, () => {

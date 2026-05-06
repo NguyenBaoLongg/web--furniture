@@ -98,9 +98,20 @@ export const verifyRegistration = async (req, res) => {
       password: storeData.password,
     });
 
+    console.log("[DEBUG] authError:", authError);
+    console.log("[DEBUG] authData:", JSON.stringify(authData, null, 2));
+
     if (authError) throw authError;
 
+    // Nếu email đã tồn tại trong auth.users nhưng bị thiếu trong public.users,
+    // Supabase sẽ trả về user: null (để bảo mật chống dò email).
+    if (!authData || !authData.user) {
+      throw new Error("User already registered");
+    }
+
     const userId = authData.user.id;
+    console.log("[DEBUG] userId extracted:", userId);
+
 
     const { error: dbError } = await supabase.from("users").upsert(
       {
@@ -112,6 +123,8 @@ export const verifyRegistration = async (req, res) => {
       },
       { onConflict: "id" },
     );
+
+    console.log("[DEBUG] dbError:", dbError);
 
     if (dbError) throw dbError;
 
@@ -148,7 +161,7 @@ export const verifyRegistration = async (req, res) => {
       session: sessionRes,
     });
   } catch (error) {
-    console.error("Lỗi xác minh OTP:", error);
+    console.error("[DEBUG] Lỗi xác minh OTP chi tiết:", error);
     // Dịch lỗi Supabase sang tiếng Việt để người dùng tránh hoang mang
     let errorMsg = error.message;
     if (errorMsg === "User already registered") {

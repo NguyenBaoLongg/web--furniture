@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import { InvoiceTemplate } from "../../components/ui/InvoiceTemplate";
 import {
   Search,
   Settings,
@@ -86,6 +89,39 @@ export const StaffOrdersPage = () => {
 
   // Manual Order Creation States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const invoiceRef = useRef(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    if (!invoiceRef.current || !selectedOrder) return;
+    try {
+      setIsExporting(true);
+      toast.info("Đang tạo file PDF, vui lòng đợi...");
+      const element = invoiceRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const imgData = canvas.toDataURL("image/jpeg", 1.0);
+      const pdf = new jsPDF("p", "pt", "a4");
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(
+        `Hoa_Don_ORD-${String(selectedOrder.id).slice(0, 8).toUpperCase()}.pdf`,
+      );
+      toast.success("Đã xuất hóa đơn PDF thành công!");
+    } catch (error) {
+      console.error("Lỗi xuất PDF:", error);
+      toast.error("Không thể xuất hóa đơn PDF.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const [productSearch, setProductSearch] = useState("");
   const [productResults, setProductResults] = useState([]);
   const [userSearch, setUserSearch] = useState("");
@@ -208,9 +244,20 @@ export const StaffOrdersPage = () => {
 
   const handleUpdateStatus = async (orderId, newStatus) => {
     try {
+      const updateData = { status: newStatus };
+
+      const currentOrder = orders.find((o) => o.id === orderId);
+      if (
+        (newStatus === "delivered" || newStatus === "completed") &&
+        currentOrder?.payment_method === "cod"
+      ) {
+        updateData.payment_status = "paid";
+        toast.info("Đã tự động cập nhật trạng thái: Đã thanh toán (COD)");
+      }
+
       const { error } = await supabase
         .from("orders")
-        .update({ status: newStatus })
+        .update(updateData)
         .eq("id", orderId);
 
       if (error) throw error;
@@ -220,10 +267,10 @@ export const StaffOrdersPage = () => {
       );
 
       setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)),
+        prev.map((o) => (o.id === orderId ? { ...o, ...updateData } : o)),
       );
       if (selectedOrder?.id === orderId) {
-        setSelectedOrder((prev) => ({ ...prev, status: newStatus }));
+        setSelectedOrder((prev) => ({ ...prev, ...updateData }));
       }
 
       fetchOrders();
@@ -303,24 +350,29 @@ export const StaffOrdersPage = () => {
         return;
       }
 
-      // 1. Tìm hoặc tạo user "Guest" (Vì backend yêu cầu user_id)
-      // Trong thực tế, nên tìm theo SĐT trước. Ở đây tạm thời gán user_id mẫu hoặc tìm user gần nhất.
-      const { data: userData } = await supabase
+      const totalPrice = manualOrder.items.reduce(
+        (sum, i) => sum + i.price * i.quantity,
+        0,
+      );
+
+      // 1. Tìm hoặc tạo user "Khách vãng lai" DUY NHẤT để gán mặc định (do DB yêu cầu user_id)
+      const { data: guestUser } = await supabase
         .from("users")
         .select("id")
-        .eq("phone", manualOrder.customer.phone)
+        .eq("phone", "GUEST")
         .maybeSingle();
 
-      let targetUserId = userData?.id;
+      let targetUserId = guestUser?.id;
 
       if (!targetUserId) {
-        // Tạo nhanh user nếu chưa có
         const { data: newUser, error: userError } = await supabase
           .from("users")
           .insert([
             {
-              full_name: manualOrder.customer.name,
-              phone: manualOrder.customer.phone,
+              id: crypto.randomUUID(),
+              full_name: "Khách mua tại cửa hàng",
+              phone: "GUEST",
+              email: "guest@local.com",
               role: "customer",
             },
           ])
@@ -331,39 +383,32 @@ export const StaffOrdersPage = () => {
         targetUserId = newUser.id;
       }
 
-      const totalPrice = manualOrder.items.reduce(
-        (sum, i) => sum + i.price * i.quantity,
-        0,
-      );
+      // 2. Lưu thông tin người nhận vào bảng user_addresses
+      const { data: newAddress, error: addrError } = await supabase
+        .from("user_addresses")
+        .insert([
+          {
+            user_id: targetUserId,
+            receiver_name: manualOrder.customer.name,
+            phone_number: manualOrder.customer.phone,
+            street_address: manualOrder.customer.street,
+            ward: manualOrder.customer.ward,
+            city: manualOrder.customer.city,
+            is_default: false,
+          },
+        ])
+        .select()
+        .single();
 
-      // 2. Gọi API tạo đơn hàng (sử dụng cấu trúc tương tự orderController)
-      const orderPayload = {
-        user_id: targetUserId,
-        address: {
-          receiver_name: manualOrder.customer.name,
-          phone_number: manualOrder.customer.phone,
-          street_address: manualOrder.customer.street,
-          ward: manualOrder.customer.ward,
-          city: manualOrder.customer.city,
-        },
-        items: manualOrder.items.map((i) => ({
-          product_id: i.id,
-          quantity: i.quantity,
-          price: i.price,
-        })),
-        total_price: totalPrice,
-        payment_method: manualOrder.paymentMethod,
-        note: manualOrder.note,
-      };
+      if (addrError) throw addrError;
 
-      // Mocking the backend call via direct Supabase or custom fetch if needed
-      // Để đồng bộ với project, tôi sẽ dùng cấu trúc của orderController
+      // 3. Gọi API tạo đơn hàng với address_id vừa tạo
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert([
           {
             user_id: targetUserId,
-            address_id: null, // Sẽ được xử lý bởi backend hoặc trigger, ở đây chúng ta fill trực tiếp
+            address_id: newAddress.id,
             total_price: totalPrice,
             status: "pending",
             payment_method: manualOrder.paymentMethod,
@@ -376,7 +421,7 @@ export const StaffOrdersPage = () => {
 
       if (orderError) throw orderError;
 
-      // Chèn items
+      // 3. Chèn items
       const { error: itemsError } = await supabase.from("order_items").insert(
         manualOrder.items.map((i) => ({
           order_id: order.id,
@@ -398,19 +443,6 @@ export const StaffOrdersPage = () => {
         if (stockError)
           console.error(`Lỗi cập nhật kho cho sp ${item.id}:`, stockError);
       }
-
-      // 5. Cập nhật địa chỉ (Tạo entry mới hoặc dùng có sẵn)
-      await supabase.from("user_addresses").insert([
-        {
-          user_id: targetUserId,
-          receiver_name: manualOrder.customer.name,
-          phone_number: manualOrder.customer.phone,
-          street_address: manualOrder.customer.street,
-          ward: manualOrder.customer.ward,
-          city: manualOrder.customer.city,
-          is_default: false,
-        },
-      ]);
 
       toast.success("Tạo đơn hàng thành công và đã cập nhật kho!");
       setIsCreateModalOpen(false);
@@ -975,10 +1007,15 @@ export const StaffOrdersPage = () => {
                 className="flex-1 bg-slate-100 text-slate-500 py-4 rounded-2xl font-black text-sm hover:bg-slate-200 transition-all">
                 Đóng
               </button>
-              <button className="flex-1 bg-[#2b4c4f] text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-[#2b4c4f]/20 hover:scale-[1.02] active:scale-95 transition-all">
-                In hóa đơn
+              <button
+                onClick={handleExportPDF}
+                disabled={isExporting}
+                className="flex-1 bg-[#2b4c4f] text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-[#2b4c4f]/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+                {isExporting ? "Đang xử lý..." : "In hóa đơn"}
               </button>
             </div>
+
+            <InvoiceTemplate ref={invoiceRef} order={selectedOrder} />
           </div>
         )}
       </div>

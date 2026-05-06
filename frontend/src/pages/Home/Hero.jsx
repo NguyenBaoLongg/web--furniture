@@ -1,8 +1,10 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const Hero = ({ onNavigate }) => {
+  const navigate = useNavigate();
   return (
     <section className="relative h-[85vh] w-full overflow-hidden">
       <div className="absolute inset-0">
@@ -28,7 +30,9 @@ export const Hero = ({ onNavigate }) => {
           transition={{ delay: 0.4 }}
           className="text-5xl md:text-7xl font-extrabold text-white mb-6 leading-tight max-w-2xl">
           Nâng Tầm <br />
-          <span className="text-primary italic font-light">Không Gian Sống</span>
+          <span className="text-primary italic font-light">
+            Không Gian Sống
+          </span>
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 20 }}
@@ -44,12 +48,14 @@ export const Hero = ({ onNavigate }) => {
           transition={{ delay: 0.8 }}
           className="flex flex-wrap gap-4">
           <button
-            onClick={onNavigate}
+            onClick={() => navigate("/products")}
             className="bg-primary text-white px-8 py-4 rounded-lg font-bold hover:opacity-90 transition-all flex items-center gap-2 group">
             Mua Ngay{" "}
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </button>
-          <button className="bg-white/10 backdrop-blur-md text-white border border-white/30 px-8 py-4 rounded-lg font-bold hover:bg-white/20 transition-all">
+          <button
+            onClick={() => navigate("/collections")}
+            className="bg-white/10 backdrop-blur-md text-white border border-white/30 px-8 py-4 rounded-lg font-bold hover:bg-white/20 transition-all">
             Khám phá Lookbook
           </button>
         </motion.div>

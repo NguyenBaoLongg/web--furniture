@@ -257,20 +257,6 @@ export const ProductDetailPage = () => {
                           <span className="text-[11px] font-bold text-slate-900 leading-none mb-1">
                             {color.name}
                           </span>
-                          <span
-                            className={`text-[9px] font-medium leading-none ${
-                              color.element === "Kim"
-                                ? "text-slate-500"
-                                : color.element === "Mộc"
-                                  ? "text-green-600"
-                                  : color.element === "Thủy"
-                                    ? "text-blue-600"
-                                    : color.element === "Hỏa"
-                                      ? "text-red-600"
-                                      : "text-amber-700"
-                            }`}>
-                            {color.element}
-                          </span>
                         </div>
                       </div>
                     );

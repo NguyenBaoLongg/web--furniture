@@ -4,7 +4,7 @@ import { Heart } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../../context/CartContext";
 
-export const ProductCard = ({ id, title, price, image, slug }) => {
+export const ProductCard = ({ id, title, price, image, slug, padding = "p-4" }) => {
   const formattedPrice = `${Number(price).toLocaleString("en-US")} VND`;
   const navigate = useNavigate();
   const { addToCart } = useCart();
@@ -23,7 +23,7 @@ export const ProductCard = ({ id, title, price, image, slug }) => {
       <motion.div
         whileHover={{ y: -10 }}
         className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all h-full flex flex-col">
-        <div className="relative aspect-square overflow-hidden bg-white p-6 flex items-center justify-center border-b border-primary/5">
+        <div className={`relative aspect-square overflow-hidden bg-white ${padding} flex items-center justify-center border-b border-primary/5`}>
           <img
             className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-700"
             alt={title}
@@ -46,7 +46,7 @@ export const ProductCard = ({ id, title, price, image, slug }) => {
             </button>
           </div>
         </div>
-        <div className="p-5 flex flex-col flex-1 bg-white">
+        <div className="p-4 flex flex-col flex-1 bg-white">
           <div className="flex justify-between items-start gap-4 h-full">
             <h3 className="text-[13px] md:text-sm font-medium text-slate-900 line-clamp-2 leading-relaxed flex-1">
               {title}

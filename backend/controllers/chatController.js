@@ -135,7 +135,7 @@ export const assignStaff = async (req, res) => {
 
     const { data, error } = await supabase
       .from("conversations")
-      .update({ staff_id: staffId, assigned_at: new Date().toISOString() })
+      .update({ staff_id: staffId })
       .eq("id", conversationId)
       .select()
       .single();

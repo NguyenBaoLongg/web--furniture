@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../../config/supabase";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import { InvoiceTemplate } from "../../components/ui/InvoiceTemplate";
 import {
   Search,
   Filter,
@@ -20,6 +23,7 @@ import {
   X,
   ShoppingCart,
   ShoppingBag,
+  Printer,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -29,6 +33,36 @@ export const AdminOrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const invoiceRef = useRef(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    if (!invoiceRef.current || !selectedOrder) return;
+    try {
+      setIsExporting(true);
+      toast.info("Đang tạo file PDF, vui lòng đợi...");
+      const element = invoiceRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const imgData = canvas.toDataURL("image/jpeg", 1.0);
+      const pdf = new jsPDF("p", "pt", "a4");
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Hoa_Don_ORD-${String(selectedOrder.id).slice(0, 8).toUpperCase()}.pdf`);
+      toast.success("Đã xuất hóa đơn PDF thành công!");
+    } catch (error) {
+      console.error("Lỗi xuất PDF:", error);
+      toast.error("Không thể xuất hóa đơn PDF.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const today = new Date();
   const [filters, setFilters] = useState({
@@ -219,44 +253,38 @@ export const AdminOrdersPage = () => {
             </span>
           </div>
 
-          <select
+          <input
+            type="number"
+            min="1"
+            max="31"
+            placeholder="Ngày"
             value={filters.day}
             onChange={(e) => setFilters((f) => ({ ...f, day: e.target.value }))}
-            className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium outline-none">
-            <option value="">Tất cả ngày</option>
-            {[...Array(31)].map((_, i) => (
-              <option key={i + 1} value={i + 1}>
-                Ngày {i + 1}
-              </option>
-            ))}
-          </select>
+            autoComplete="off"
+            className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium outline-none w-20"
+          />
 
-          <select
+          <input
+            type="number"
+            min="1"
+            max="12"
+            placeholder="Tháng"
             value={filters.month}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, month: e.target.value }))
-            }
-            className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium outline-none">
-            <option value="">Tất cả tháng</option>
-            {[...Array(12)].map((_, i) => (
-              <option key={i + 1} value={i + 1}>
-                Tháng {i + 1}
-              </option>
-            ))}
-          </select>
+            onChange={(e) => setFilters((f) => ({ ...f, month: e.target.value }))}
+            autoComplete="off"
+            className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium outline-none w-20"
+          />
 
-          <select
+          <input
+            type="number"
+            min="2000"
+            max={new Date().getFullYear()}
+            placeholder="Năm"
             value={filters.year}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, year: e.target.value }))
-            }
-            className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium outline-none">
-            {[2024, 2025, 2026].map((y) => (
-              <option key={y} value={y}>
-                Năm {y}
-              </option>
-            ))}
-          </select>
+            onChange={(e) => setFilters((f) => ({ ...f, year: e.target.value }))}
+            autoComplete="off"
+            className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium outline-none w-24"
+          />
 
           <select
             value={filters.status}
@@ -565,7 +593,14 @@ export const AdminOrdersPage = () => {
               </div>
             </div>
 
-            <div className="p-8 bg-gray-50 border-t border-gray-100 flex justify-end">
+            <div className="p-8 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+              <button
+                onClick={handleExportPDF}
+                disabled={isExporting}
+                className="flex items-center gap-2 bg-white text-[#2b4c4f] border border-[#2b4c4f] px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#f4ebd0] transition-all disabled:opacity-50">
+                <Printer size={18} />
+                {isExporting ? "Đang xử lý..." : "In hóa đơn (PDF)"}
+              </button>
               <button
                 onClick={() => setShowModal(false)}
                 className="bg-[#2b4c4f] text-white px-8 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-[#2b4c4f]/10 hover:bg-[#1a3335] transition-all">
@@ -573,6 +608,8 @@ export const AdminOrdersPage = () => {
               </button>
             </div>
           </div>
+
+          <InvoiceTemplate ref={invoiceRef} order={selectedOrder} />
         </div>
       )}
     </div>
