@@ -27,12 +27,10 @@ export const sendOtp = async (req, res) => {
       .maybeSingle();
 
     if (existingUser) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Email này đã tồn tại trong hệ thống. Vui lòng đăng nhập hoặc dùng email khác!",
-        });
+      return res.status(400).json({
+        message:
+          "Email này đã tồn tại trong hệ thống. Vui lòng đăng nhập hoặc dùng email khác!",
+      });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -92,7 +90,6 @@ export const verifyRegistration = async (req, res) => {
       return res.status(400).json({ message: "Mã OTP không chính xác!" });
     }
 
-    // Correct OTP -> Actually create the user in Supabase
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password: storeData.password,
@@ -104,14 +101,12 @@ export const verifyRegistration = async (req, res) => {
     if (authError) throw authError;
 
     // Nếu email đã tồn tại trong auth.users nhưng bị thiếu trong public.users,
-    // Supabase sẽ trả về user: null (để bảo mật chống dò email).
     if (!authData || !authData.user) {
       throw new Error("User already registered");
     }
 
     const userId = authData.user.id;
     console.log("[DEBUG] userId extracted:", userId);
-
 
     const { error: dbError } = await supabase.from("users").upsert(
       {
@@ -162,7 +157,6 @@ export const verifyRegistration = async (req, res) => {
     });
   } catch (error) {
     console.error("[DEBUG] Lỗi xác minh OTP chi tiết:", error);
-    // Dịch lỗi Supabase sang tiếng Việt để người dùng tránh hoang mang
     let errorMsg = error.message;
     if (errorMsg === "User already registered") {
       errorMsg = "Tài khoản email này đã được ai đó đăng ký trước đó rồi.";
@@ -229,7 +223,6 @@ export const updateAddress = async (req, res) => {
         .eq("id", existingAddress.id);
       if (updateError) throw updateError;
     } else {
-      // Tạo địa chỉ mặc định mới
       const { error: insertError } = await supabase
         .from("user_addresses")
         .insert([

@@ -1,8 +1,10 @@
 import { supabase } from "../config/supabase.js";
 import { calculateFengShui } from "../utils/colorUtils.js";
+import { GoogleGenAI } from "@google/genai";
 
-const OLLAMA_URL = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL;
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY || "YOUR_API_KEY",
+});
 
 export const consultFengShui = async (req, res) => {
   try {
@@ -15,19 +17,20 @@ export const consultFengShui = async (req, res) => {
     }
 
     const prompt = `
-Bạn là bộ tạo JSON phong thủy nội thất.
+Bạn là chuyên gia tư vấn phong thủy nội thất.
+
+Nhiệm vụ:
+1. Xác định mệnh (Ngũ hành nạp âm) dựa trên ngày sinh: ${birthDate}.
+2. Đưa ra lời khuyên chọn nội thất phù hợp với mệnh đó.
 
 Quy tắc bắt buộc:
 - Chỉ xác định mệnh theo năm sinh âm lịch/nạp âm.
-- Không dùng cung mệnh, bát tự, ngày sinh, giờ sinh.
-- Ngày sinh đầu vào có định dạng DD/MM/YYYY.
 - Chỉ trả về JSON hợp lệ.
 - Không markdown, không giải thích, không thêm chữ ngoài JSON.
-Người dùng sinh ngày: ${birthDate}
 Trả về đúng định dạng:
 {
-  "element": "Thủy",
-  "element_en": "Water",
+  "element": "Tên mệnh (Kim, Mộc, Thủy, Hỏa, hoặc Thổ)",
+  "element_en": "Tên mệnh tiếng Anh (Metal, Wood, Water, Fire, hoặc Earth)",
   "advice": "Lời khuyên tối đa 30 từ về chọn nội thất theo mệnh."
 }
 `.trim();
@@ -35,43 +38,28 @@ Trả về đúng định dạng:
     let fengShuiData;
 
     try {
-      console.log(">>> OLLAMA URL:", OLLAMA_URL);
-      console.log(">>> OLLAMA MODEL:", OLLAMA_MODEL);
+      console.log(">>> Using Gemini API (gemini-2.0-flash-lite)");
 
-      const ollamaResponse = await fetch(`${OLLAMA_URL}/api/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: OLLAMA_MODEL,
-          prompt,
-          stream: false,
-          format: "json",
-          options: {
-            temperature: 0,
-            top_p: 1,
-            seed: 1,
-          },
-        }),
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-lite",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0,
+        },
       });
-      const result = await ollamaResponse.json();
+      const text = response.text;
 
-      console.log(">>> Ollama Response:", result);
+      console.log(">>> Gemini Response:", text);
 
-      if (result.error) {
-        throw new Error(`Ollama báo lỗi: ${result.error}`);
-      }
-
-      if (!result.response) {
-        throw new Error("Ollama không trả về dữ liệu 'response'.");
+      if (!text) {
+        throw new Error("Gemini không trả về dữ liệu.");
       }
 
       try {
-        fengShuiData = JSON.parse(result.response);
+        fengShuiData = JSON.parse(text);
       } catch (parseError) {
-        console.error(
-          "AI không trả về JSON hợp lệ. Nội dung gốc:",
-          result.response,
-        );
+        console.error("AI không trả về JSON hợp lệ. Nội dung gốc:", text);
         throw new Error("Dữ liệu từ AI không đúng định dạng JSON");
       }
 
@@ -83,17 +71,14 @@ Trả về đúng định dạng:
         throw new Error("JSON từ AI thiếu trường bắt buộc.");
       }
     } catch (error) {
-      console.error("Lỗi Ollama:", error.message);
+      console.error("Lỗi Gemini:", error.message);
 
       return res.status(500).json({
-        message: "Không thể kết nối hoặc xử lý dữ liệu từ Ollama.",
+        message: "Không thể kết nối hoặc xử lý dữ liệu từ Gemini.",
         detail: error.message,
       });
     }
 
-    // --- LOGIC TỰ ĐỘNG TÌM MÀU THEO MỆNH ---
-
-    // 1. Lấy tất cả màu trong database
     const { data: allColors, error: colorsError } = await supabase
       .from("colors")
       .select("name, hex");
@@ -108,7 +93,6 @@ Trả về đúng định dạng:
       hex: c.hex,
     }));
 
-    // 3. Truy vấn sản phẩm dựa trên cột element mới (sử dụng ilike để tìm kiếm trong chuỗi)
     const { data: products, error: productError } = await supabase
       .from("products")
       .select(

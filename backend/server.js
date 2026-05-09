@@ -13,6 +13,7 @@ import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import fengshuiRoutes from "./routes/fengshuiRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/fengshui", fengshuiRoutes);
+app.use("/api/ai", aiRoutes);
 
 const PORT = 5000;
 app.listen(PORT, () => {

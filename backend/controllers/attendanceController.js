@@ -1,6 +1,5 @@
 import { supabase } from "../config/supabase.js";
 
-// Check-in
 export const checkIn = async (req, res) => {
   try {
     const { userId } = req.body;
@@ -15,7 +14,9 @@ export const checkIn = async (req, res) => {
 
     if (checkError) throw checkError;
     if (existing) {
-      return res.status(400).json({ message: "Bạn đã check-in rồi, vui lòng check-out trước!" });
+      return res
+        .status(400)
+        .json({ message: "Bạn đã check-in rồi, vui lòng check-out trước!" });
     }
 
     const { data, error } = await supabase
@@ -49,21 +50,23 @@ export const checkOut = async (req, res) => {
 
     if (findError) throw findError;
     if (!attendance) {
-      return res.status(400).json({ message: "Không tìm thấy lượt check-in nào đang hoạt động!" });
+      return res
+        .status(400)
+        .json({ message: "Không tìm thấy lượt check-in nào đang hoạt động!" });
     }
 
     const checkOutTime = new Date();
     const checkInTime = new Date(attendance.check_in);
-    
+
     // Tính tổng giờ làm (đơn vị: giờ)
     const durationMs = checkOutTime - checkInTime;
     const totalHours = parseFloat((durationMs / (1000 * 60 * 60)).toFixed(2));
 
     const { data, error } = await supabase
       .from("staff_attendance")
-      .update({ 
+      .update({
         check_out: checkOutTime.toISOString(),
-        total_hours: totalHours
+        total_hours: totalHours,
       })
       .eq("id", attendance.id)
       .select()
@@ -81,7 +84,7 @@ export const checkOut = async (req, res) => {
 export const getMonthlyAttendance = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { month, year } = req.query; // Ví dụ: month=4, year=2026
+    const { month, year } = req.query;
 
     const startDate = new Date(year, month - 1, 1).toISOString();
     const endDate = new Date(year, month, 0, 23, 59, 59).toISOString();
@@ -103,7 +106,7 @@ export const getMonthlyAttendance = async (req, res) => {
         acc[dateKey] = {
           date: dateKey,
           total_hours: 0,
-          sessions: []
+          sessions: [],
         };
       }
       acc[dateKey].total_hours += parseFloat(curr.total_hours || 0);
