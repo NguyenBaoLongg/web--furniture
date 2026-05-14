@@ -50,35 +50,36 @@ export const ChatWidget = () => {
           filter: `conversation_id=eq.${conversation.id}`,
         },
         async (payload) => {
-          setMessages((prev) => {
-            // Tránh trùng lặp tin nhắn vừa tự gửi
-            if (prev.find((m) => m.id === payload.new.id)) return prev;
+          console.log("Nhận tin nhắn mới realtime:", payload);
+          // Lấy đầy đủ thông tin sender (vì payload realtime mặc định không join bảng)
+          const { data: fullMsg, error } = await supabase
+            .from("messages")
+            .select(
+              `
+              *,
+              sender:users!messages_sender_id_fkey (id, full_name, role)
+            `,
+            )
+            .eq("id", payload.new.id)
+            .single();
 
-            const fetchFullMsg = async () => {
-              const { data: fullMsg } = await supabase
-                .from("messages")
-                .select(
-                  `
-                  *,
-                  sender:users!messages_sender_id_fkey (id, full_name, role)
-                `,
-                )
-                .eq("id", payload.new.id)
-                .single();
+          if (error) {
+            console.error("Lỗi lấy thông tin tin nhắn realtime:", error);
+            return;
+          }
 
-              if (fullMsg) {
-                setMessages((p) => {
-                  if (p.find((m) => m.id === fullMsg.id)) return p;
-                  return [...p, fullMsg];
-                });
-              }
-            };
-            fetchFullMsg();
-            return prev;
-          });
+          if (fullMsg) {
+            setMessages((prev) => {
+              const exists = prev.find((m) => m.id === fullMsg.id);
+              if (exists) return prev;
+              return [...prev, fullMsg];
+            });
+          }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`Trạng thái realtime chat ${conversation.id}:`, status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -172,8 +173,7 @@ export const ChatWidget = () => {
                 new Date(msg.created_at) - new Date(prevMsg.created_at) >
                   30 * 60 * 1000;
 
-              const isFromStaff =
-                msg.sender?.role === "staff" || msg.sender?.role === "admin";
+              const isFromMe = msg.sender_id === user.id;
 
               return (
                 <React.Fragment key={msg.id}>
@@ -190,13 +190,14 @@ export const ChatWidget = () => {
 
                   <div
                     className={`flex items-end gap-2 ${
-                      !isFromStaff ? "justify-end" : "justify-start"
+                      isFromMe ? "justify-end" : "justify-start"
                     } ${isLastInGroup ? "mb-4" : "mb-0.5"}`}>
-                    {/* Avatar của Nhân viên bên Trái */}
-                    {isFromStaff && (
+                    
+                    {/* Avatar của "Người khác" (Staff) bên Trái */}
+                    {!isFromMe && (
                       <div className="w-6 h-6 flex-shrink-0">
                         {isLastInGroup ? (
-                          <div className="w-6 h-6 rounded-full bg-[#2b4c4f] flex items-center justify-center text-[8px] font-black text-white overflow-hidden shadow-sm">
+                          <div className="w-6 h-6 rounded-full bg-[#2b4c4f] flex items-center justify-center text-[8px] font-black text-white overflow-hidden shadow-sm uppercase">
                             {msg.sender?.full_name?.charAt(0) || "S"}
                           </div>
                         ) : null}
@@ -205,21 +206,27 @@ export const ChatWidget = () => {
 
                     <div
                       className={`max-w-[75%] flex flex-col ${
-                        !isFromStaff ? "items-end" : "items-start"
+                        isFromMe ? "items-end" : "items-start"
                       }`}>
                       <div
                         className={`px-3 py-2 rounded-2xl text-[13px] leading-snug shadow-sm ${
-                          !isFromStaff
+                          isFromMe
                             ? "bg-[#2b4c4f] text-white rounded-tr-none"
                             : "bg-white text-black rounded-tl-none border border-slate-200"
                         }`}>
                         {msg.content}
                       </div>
 
-                      {isLastInGroup && isFromStaff && (
-                        <p className="text-[9px] text-slate-400 font-bold mt-1 px-1 uppercase">
-                          {msg.sender?.full_name?.split(" ").pop()}
+                      {isLastInGroup && !isFromMe && (
+                        <p className="text-[9px] text-slate-400 font-bold mt-1 px-1 uppercase tracking-tighter">
+                          {msg.sender?.full_name?.split(" ").pop()} • {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
+                      )}
+                      
+                      {isLastInGroup && isFromMe && (
+                         <p className="text-[9px] text-slate-400 font-bold mt-1 px-1 uppercase tracking-tighter">
+                           BẠN • {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                         </p>
                       )}
                     </div>
                   </div>

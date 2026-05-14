@@ -7,6 +7,9 @@ import {
   getAddress,
   getProfile,
   updateProfile,
+  forgotPassword,
+  verifyResetOtp,
+  resetPassword,
 } from "../controllers/authController.js";
 
 const router = express.Router();
@@ -18,5 +21,9 @@ router.post("/address", updateAddress);
 router.get("/address/:userId", getAddress);
 router.get("/profile/:userId", getProfile);
 router.put("/profile/:userId", updateProfile);
+
+router.post("/forgot-password", forgotPassword);
+router.post("/verify-reset-otp", verifyResetOtp);
+router.post("/reset-password", resetPassword);
 
 export default router;

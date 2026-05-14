@@ -118,7 +118,7 @@ export const LoginPage = () => {
                   Mật khẩu
                 </label>
                 <Link
-                  to="#"
+                  to="/forgot-password"
                   className="text-xs font-medium text-slate-500 hover:text-primary transition-colors">
                   Quên mật khẩu?
                 </Link>

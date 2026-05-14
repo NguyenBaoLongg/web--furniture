@@ -5,10 +5,13 @@ import { Footer } from "./components/layout/Footer.jsx";
 import { Home } from "./pages/Home/Home.jsx";
 import { CategoryDetailPage } from "./pages/Category/CategoryDetailPage.jsx";
 import { RoomDetailPage } from "./pages/Room/RoomDetailPage.jsx";
+import { StyleDetailPage } from "./pages/Style/StyleDetailPage.jsx";
+import { CollectionsPage } from "./pages/Style/CollectionsPage.jsx";
 import { ProductDetailPage } from "./pages/Product/ProductDetailPage.jsx";
 import { CartPage } from "./pages/Cart/CartPage.jsx";
 import { LoginPage } from "./pages/Auth/LoginPage.jsx";
 import { RegisterPage } from "./pages/Auth/RegisterPage.jsx";
+import { ForgotPasswordPage } from "./pages/Auth/ForgotPasswordPage.jsx";
 import { useCart } from "./context/CartContext.jsx";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -34,6 +37,7 @@ import { AdminOrdersPage } from "./pages/Admin/AdminOrdersPage.jsx";
 import { AdminProductsPage } from "./pages/Admin/AdminProductsPage";
 import { AdminCategoriesPage } from "./pages/Admin/AdminCategoriesPage";
 import { AdminCustomersPage } from "./pages/Admin/AdminCustomersPage";
+import { AdminStylesPage } from "./pages/Admin/AdminStylesPage";
 import { ChatWidget } from "./components/chat/ChatWidget.jsx";
 import { StaffSupportPage } from "./pages/Staff/StaffSupportPage.jsx";
 import { StaffInventoryPage } from "./pages/Staff/StaffInventoryPage.jsx";
@@ -45,7 +49,7 @@ import { StaffAttendancePage } from "./pages/Staff/StaffAttendancePage.jsx";
 export default function App() {
   const { cartItems } = useCart();
   const location = useLocation();
-  const hideHeaderFooterPaths = ["/login", "/register", "/vnpay-return"];
+  const hideHeaderFooterPaths = ["/login", "/register", "/forgot-password", "/vnpay-return"];
   const isAuthPage =
     hideHeaderFooterPaths.includes(location.pathname) ||
     location.pathname.startsWith("/admin") ||
@@ -70,10 +74,13 @@ export default function App() {
             element={<CategoryDetailPage />}
           />
           <Route path="/room/:roomSlug" element={<RoomDetailPage />} />
+          <Route path="/style/:styleSlug" element={<StyleDetailPage />} />
+          <Route path="/collections" element={<CollectionsPage />} />
           <Route path="/product/:slug" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/vnpay-return" element={<VNPayReturn />} />
@@ -104,6 +111,7 @@ export default function App() {
             <Route path="products" element={<AdminProductsPage />} />
             <Route path="categories" element={<AdminCategoriesPage />} />
             <Route path="customers" element={<AdminCustomersPage />} />
+            <Route path="styles" element={<AdminStylesPage />} />
           </Route>
 
           {/* staff */}

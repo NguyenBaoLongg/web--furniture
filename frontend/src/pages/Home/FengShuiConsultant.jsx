@@ -206,10 +206,15 @@ export const FengShuiConsultant = () => {
                     {elementIcons[result.consultation.element]}
                   </div>
                   <div className="flex-1 text-center md:text-left">
-                    <div className="flex flex-col md:flex-row md:items-end gap-4 mb-6">
-                      <h3 className="text-5xl md:text-7xl font-black tracking-tighter uppercase">
-                        Mệnh {result.consultation.element}
-                      </h3>
+                    <div className="flex flex-col md:flex-row md:items-end gap-4 mb-4">
+                      <div>
+                        <h3 className="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-none">
+                          {result.consultation.nap_am}
+                        </h3>
+                        <p className="text-sm md:text-base font-bold opacity-80 uppercase tracking-[0.2em] mt-2">
+                          Mệnh {result.consultation.element}
+                        </p>
+                      </div>
                       <div className="flex flex-wrap justify-center md:justify-start gap-2 pb-1">
                         {result.consultation.luckyColors.map((colorObj, idx) => (
                           <span key={idx} className="flex items-center gap-2 px-4 py-1.5 bg-white/40 backdrop-blur-md rounded-full text-[10px] font-extrabold uppercase tracking-widest border border-white/20">

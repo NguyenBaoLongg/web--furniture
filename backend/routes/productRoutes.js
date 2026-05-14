@@ -4,6 +4,7 @@ import {
   getNewArrivals,
   getProductsByCategory,
   getProductsByRoom,
+  getProductsByStyle,
   getProductBySlug,
   createProduct,
   updateProduct,
@@ -15,6 +16,7 @@ const router = express.Router();
 router.get("/new-arrivals", getNewArrivals);
 router.get("/category/:categorySlug", getProductsByCategory);
 router.get("/room/:roomSlug", getProductsByRoom);
+router.get("/style/:styleSlug", getProductsByStyle);
 router.get("/", getAllProducts);
 router.get("/:slug", getProductBySlug);
 

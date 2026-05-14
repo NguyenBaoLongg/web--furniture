@@ -12,42 +12,44 @@ export const aiSearchProducts = async (req, res) => {
       return res.status(400).json({ message: "Vui lòng nhập yêu cầu" });
     }
 
-    const { data: categories } = await supabase
-      .from("categories")
-      .select("name, slug");
+    const { data: categories } = await supabase.from("categories").select("name, slug");
     const { data: rooms } = await supabase.from("rooms").select("name, slug");
+    const { data: styles } = await supabase.from("styles").select("name, slug");
+    const { data: colors } = await supabase.from("colors").select("name");
 
     const categoryList = categories?.map((c) => c.name).join(", ");
     const roomList = rooms?.map((r) => r.name).join(", ");
-
+    const styleList = styles?.map((s) => s.name).join(", ");
+    const colorList = colors?.map((c) => c.name).join(", "); 
     const prompt = `
 Trích xuất thông tin tìm kiếm thành JSON. KHÔNG TRẢ LỜI GÌ THÊM.
 
 - Danh mục hợp lệ: ${categoryList}
 - Phòng hợp lệ: ${roomList}
-
+- Phong cách hợp lệ: ${styleList}
+- tên màu hợp lệ: ${colorList}
 LUẬT:
 1. "category": Chọn 1 từ "Danh mục hợp lệ". Nếu không có, xuất null (kiểu null, không phải chuỗi).
-2. "room": Chọn 1 từ "Phòng hợp lệ".
-3. Giá tiền (1 triệu = 1000000):
+2. "room": Chọn 1 từ "Phòng hợp lệ". Nếu không có, xuất null.
+3. "style": Chọn 1 từ "Phong cách hợp lệ". Nếu không có, xuất null.
+4. "color": Chọn 1 từ "tên màu hợp lệ". Nếu không có, xuất null.
+5. Giá tiền (1 triệu = 1000000):
    - Từ "trên", "hơn", "tối thiểu" -> BẮT BUỘC ghi vào "min_price", để "max_price" là null.
    - Từ "dưới", "không quá", "tối đa" -> BẮT BUỘC ghi vào "max_price", để "min_price" là null.
 
 Ví dụ minh họa cấu trúc (Không sao chép nội dung):
 {
   "category": "Tên danh mục",
-  "room": null,
-  "min_price": 15000000,
+  "room": "room",
+  "min_price": null,
   "max_price": null,
-  "style": "hiện đại",
-  "color": "da"
+  "style": "style",
+  "color": "color"
 }
 
 Câu của người dùng: "${message}"
 JSON:`.trim();
-
-    console.log(">>> Sending prompt to Ollama...");
-
+console.log(prompt)
     let aiResponse;
     try {
       const response = await axios.post(
@@ -90,13 +92,37 @@ JSON:`.trim();
     }
 
     // Xây dựng query Supabase dựa trên JSON từ AI
-    let query = supabase.from("products").select(`
+    let selectFields = `
       *,
-      categories!inner(name, slug),
-      product_images (image_url),
-      product_rooms!inner(rooms!inner(name, slug)),
-      product_colors (colors (id, name, hex, element))
-    `);
+      product_images (image_url)
+    `;
+
+    // Category: Luôn lấy thông tin, dùng !inner nếu có lọc
+    if (aiResponse.category) {
+      selectFields += `, categories!inner(name, slug)`;
+    } else {
+      selectFields += `, categories(name, slug)`;
+    }
+
+    if (aiResponse.room) {
+      selectFields += `, product_rooms!inner(rooms!inner(name, slug))`;
+    } else {
+      selectFields += `, product_rooms(rooms(name, slug))`;
+    }
+
+    if (aiResponse.style) {
+      selectFields += `, product_styles!inner(styles!inner(name, slug))`;
+    } else {
+      selectFields += `, product_styles(styles(name, slug))`;
+    }
+
+    if (aiResponse.color) {
+      selectFields += `, product_colors!inner(colors!inner(id, name, hex, element))`;
+    } else {
+      selectFields += `, product_colors(colors(id, name, hex, element))`;
+    }
+
+    let query = supabase.from("products").select(selectFields);
 
     if (aiResponse.category) {
       query = query.ilike("categories.name", `%${aiResponse.category}%`);
@@ -106,22 +132,20 @@ JSON:`.trim();
       query = query.ilike("product_rooms.rooms.name", `%${aiResponse.room}%`);
     }
 
+    if (aiResponse.style) {
+      query = query.ilike("product_styles.styles.name", `%${aiResponse.style}%`);
+    }
+
+    if (aiResponse.color) {
+      query = query.ilike("product_colors.colors.name", `%${aiResponse.color}%`);
+    }
+
     if (aiResponse.max_price) {
       query = query.lte("price", aiResponse.max_price);
     }
 
     if (aiResponse.min_price) {
       query = query.gte("price", aiResponse.min_price);
-    }
-
-    // Lọc thêm theo title hoặc description nếu có style hoặc color
-    if (aiResponse.style || aiResponse.color) {
-      const filterTerm = [aiResponse.style, aiResponse.color]
-        .filter(Boolean)
-        .join(" ");
-      query = query.or(
-        `title.ilike.%${filterTerm}%,description.ilike.%${filterTerm}%`,
-      );
     }
 
     query = query.eq("is_active", true).limit(12);

@@ -24,6 +24,13 @@ import { toast } from "react-toastify";
 import { QRCodeCanvas } from "qrcode.react";
 import { X } from "lucide-react";
 
+// Import payment components
+import { CODPayment } from "./payments/CODPayment";
+import { VNPayPayment } from "./payments/VNPayPayment";
+import { BankTransferPayment } from "./payments/BankTransferPayment";
+import { BankTransferView } from "./payments/BankTransferView";
+
+
 export const CheckoutPage = () => {
   const navigate = useNavigate();
   const { cartItems, loading: cartLoading, fetchCart } = useCart();
@@ -63,6 +70,23 @@ export const CheckoutPage = () => {
   const [isNextLoading, setIsNextLoading] = useState(false);
   const [vnpayOrderDetails, setVnpayOrderDetails] = useState(null);
 
+  // Trạng thái cho Chuyển khoản ngân hàng (VietQR)
+  const [bankTransferData, setBankTransferData] = useState({
+    qrUrl: "",
+    randomCode: "",
+    showQR: false,
+  });
+
+  const generateRandomString = (length = 10) => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+
   // Logics hiển thị tổng quát (Sidebar & Review)
   const displayItems =
     isVnpayPaid && vnpayOrderDetails?.order_items
@@ -71,7 +95,7 @@ export const CheckoutPage = () => {
 
   const subTotal =
     isVnpayPaid && vnpayOrderDetails
-      ? vnpayOrderDetails.total_price / 1.08
+      ? vnpayOrderDetails.total_price
       : cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
   const total =
@@ -123,56 +147,7 @@ export const CheckoutPage = () => {
     return () => clearInterval(interval);
   }, [vnpayOrderId, isVnpayPaid]);
 
-  const handleVnpaySelection = async () => {
-    if (isVnpayPaid) return;
 
-    if (!formData.shipping.phone_number || !formData.shipping.street_address) {
-      toast.warning(
-        "Vui lòng nhập số điện thoại và địa chỉ giao hàng trước khi chọn VNPay.",
-      );
-      return;
-    }
-
-    try {
-      setIsVnpayLoading(true);
-      setFormData({
-        ...formData,
-        payment: { ...formData.payment, method: "vnpay" },
-      });
-
-      // 1. Tạo đơn hàng chờ (Pending)
-      const orderData = {
-        user_id: user.id,
-        address: formData.shipping,
-        items: cartItems.map((item) => ({
-          product_id: item.productId,
-          variant_id: item.variantId,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-        total_price: Math.round(total + subTotal * 0.08),
-        payment_method: "vnpay",
-        note: formData.note,
-      };
-
-      const res = await axiosClient.post("/orders", orderData);
-      const orderId = res.data.orderId;
-      setVnpayOrderId(orderId);
-
-      const vnpayRes = await axiosClient.post("/orders/create-vnpay-url", {
-        orderId,
-      });
-
-      if (vnpayRes.data.metadata) {
-        window.open(vnpayRes.data.metadata, "_blank");
-      }
-    } catch (error) {
-      console.error("Lỗi khởi tạo VNPay:", error);
-      toast.error("Không thể khởi tạo thanh toán VNPay.");
-    } finally {
-      setIsVnpayLoading(false);
-    }
-  };
   const shippingFee = 0;
 
   const steps = [
@@ -224,7 +199,7 @@ export const CheckoutPage = () => {
     else navigate("/cart");
   };
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async (isPaid = false) => {
     if (isPlacingOrder) return;
 
     // Nếu chọn VNPay nhưng chưa thanh toán thành công
@@ -255,9 +230,11 @@ export const CheckoutPage = () => {
           quantity: item.quantity,
           price: item.price,
         })),
-        total_price: total + subTotal * 0.08,
+        total_price: total,
         payment_method: formData.payment.method,
         note: formData.note,
+        payment_status: isPaid ? "paid" : "unpaid",
+        status: isPaid ? "processing" : "pending",
       };
 
       const res = await axiosClient.post("/orders", orderData);
@@ -285,6 +262,19 @@ export const CheckoutPage = () => {
     navigate("/login");
     return null;
   }
+
+  if (bankTransferData.showQR) {
+    return (
+      <BankTransferView 
+        bankTransferData={bankTransferData}
+        setBankTransferData={setBankTransferData}
+        subTotal={subTotal}
+        formatPrice={formatPrice}
+        onPaymentSuccess={handlePlaceOrder}
+      />
+    );
+  }
+
 
   return (
     <div className="bg-[#fcfcfc] min-h-screen">
@@ -467,102 +457,35 @@ export const CheckoutPage = () => {
                   Chọn phương thức thanh toán
                 </h2>
                 <div className="space-y-4">
-                  {/* THANH TOÁN KHI NHẬN HÀNG */}
-                  <div
-                    onClick={() =>
-                      setFormData({
-                        ...formData,
-                        payment: { ...formData.payment, method: "cod" },
-                      })
-                    }
-                    className={`p-6 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 ${formData.payment.method === "cod" ? "border-[#2b4c4f] bg-[#f8fcfb]" : "border-slate-100 bg-white"}`}>
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.payment.method === "cod" ? "border-[#2b4c4f]" : "border-slate-200"}`}>
-                      {formData.payment.method === "cod" && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#2b4c4f]"></div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <span className="font-bold text-slate-900">
-                        Thanh toán khi nhận hàng (COD)
-                      </span>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Thanh toán tiền mặt khi đơn hàng được giao đến bạn.
-                      </p>
-                    </div>
-                  </div>
+                  <CODPayment formData={formData} setFormData={setFormData} />
+                  
+                  <VNPayPayment 
+                    formData={formData}
+                    setFormData={setFormData}
+                    cartItems={cartItems}
+                    user={user}
+                    total={total}
+                    subTotal={subTotal}
+                    isVnpayPaid={isVnpayPaid}
+                    isVnpayLoading={isVnpayLoading}
+                    setIsVnpayLoading={setIsVnpayLoading}
+                    setVnpayOrderId={setVnpayOrderId}
+                  />
 
-                  {/* VÍ ĐIỆN TỬ */}
-                  <div
-                    onClick={handleVnpaySelection}
-                    className={`p-6 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 ${formData.payment.method === "vnpay" ? "border-[#2b4c4f] bg-[#f8fcfb]" : "border-slate-100 bg-white"}`}>
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.payment.method === "vnpay" ? "border-[#2b4c4f]" : "border-slate-200"}`}>
-                      {formData.payment.method === "vnpay" && (
-                        <div
-                          className={`w-2.5 h-2.5 rounded-full ${isVnpayPaid ? "bg-emerald-500" : "bg-[#2b4c4f]"}`}></div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-900 flex items-center gap-2">
-                          Ví điện tử VNPay
-                          {isVnpayPaid && (
-                            <CheckCircle className="w-4 h-4 text-emerald-500" />
-                          )}
-                          {isVnpayLoading && (
-                            <div className="w-3 h-3 border-2 border-[#2b4c4f] border-t-transparent rounded-full animate-spin"></div>
-                          )}
-                        </span>
-                        <div className="flex gap-2">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[8px] font-bold text-white ${isVnpayPaid ? "bg-emerald-500" : "bg-[#ae2070]"}`}>
-                            {isVnpayPaid ? "ĐÃ THANH TOÁN" : "VN PAY"}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {isVnpayPaid
-                          ? "Giao dịch đã được xác nhận thành công."
-                          : "Hệ thống sẽ mở tab thanh toán mới ngay khi bạn chọn."}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* CHUYỂN KHOẢN NGÂN HÀNG */}
-                  <div
-                    onClick={() =>
-                      setFormData({
-                        ...formData,
-                        payment: {
-                          ...formData.payment,
-                          method: "bank_transfer",
-                        },
-                      })
-                    }
-                    className={`p-6 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 ${formData.payment.method === "bank_transfer" ? "border-[#2b4c4f] bg-[#f8fcfb]" : "border-slate-100 bg-white"}`}>
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.payment.method === "bank_transfer" ? "border-[#2b4c4f]" : "border-slate-200"}`}>
-                      {formData.payment.method === "bank_transfer" && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#2b4c4f]"></div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <span className="font-bold text-slate-900">
-                        Chuyển khoản Ngân hàng
-                      </span>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Chuyển khoản trực tiếp vào số tài khoản của chúng tôi.
-                      </p>
-                    </div>
-                  </div>
+                  <BankTransferPayment 
+                    formData={formData}
+                    setFormData={setFormData}
+                    subTotal={subTotal}
+                    setBankTransferData={setBankTransferData}
+                    generateRandomString={generateRandomString}
+                  />
                 </div>
+
               </div>
             )}
 
             {currentStep === 3 && (
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-                {/* SUCCESS HEADER (ONLY FOR VNPay SUCCESS) */}
                 {formData.payment.method === "vnpay" && isVnpayPaid && (
                   <div className="bg-white rounded-[2rem] p-10 border border-slate-100 shadow-sm text-center space-y-4 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1.5 bg-emerald-500"></div>
@@ -657,11 +580,7 @@ export const CheckoutPage = () => {
                       <div key={item.id} className="flex gap-6 pb-6 border-b border-slate-50 last:border-0 last:pb-0">
                         <div className="w-20 h-24 rounded-2xl bg-[#f8f9fa] p-2 border border-slate-50 shrink-0 overflow-hidden">
                           <img
-                            src={
-                              isVnpayPaid 
-                                ? (item.product_variants?.image_url || item.products?.thumbnail)
-                                : item.image
-                            }
+                            src={item.products?.thumbnail || item.image}
                             className="w-full h-full object-contain mix-blend-multiply"
                             alt={isVnpayPaid ? item.products?.title : item.title}
                           />
@@ -671,7 +590,7 @@ export const CheckoutPage = () => {
                             {isVnpayPaid ? item.products?.title : item.title}
                           </h4>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-                            Số lượng: {item.quantity} | {isVnpayPaid ? item.product_variants?.color_name : item.color}
+                            Số lượng: {item.quantity} {item.color ? `| ${item.color}` : ''}
                           </p>
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-bold text-slate-900">{formatPrice(item.price)}</span>
@@ -847,7 +766,7 @@ export const CheckoutPage = () => {
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Thuế ước tính</span>
                   <span className="font-bold text-slate-900">
-                    {formatPrice(subTotal * 0.08)}
+                    {formatPrice(0)}
                   </span>
                 </div>
               </div>
@@ -861,7 +780,7 @@ export const CheckoutPage = () => {
                     <div className="text-3xl font-bold text-slate-900 tracking-tight">
                       {isVnpayPaid && vnpayOrderDetails 
                         ? formatPrice(vnpayOrderDetails.total_price)
-                        : formatPrice(total + subTotal * 0.08)}
+                        : formatPrice(total)}
                     </div>
                     <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
                       VND (Bao gồm VAT)
@@ -869,20 +788,6 @@ export const CheckoutPage = () => {
                   </div>
                 </div>
 
-                <div className="mb-8">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">
-                    Mã giảm giá
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      className="flex-1 border border-slate-100 rounded-xl px-4 py-3 text-sm"
-                      placeholder="Nhập mã"
-                    />
-                    <button className="bg-slate-50 text-slate-700 px-6 py-3 rounded-xl text-xs font-bold hover:bg-slate-100 transition-colors border border-slate-100">
-                      Áp dụng
-                    </button>
-                  </div>
-                </div>
 
                 <div className="bg-[#f8fcfb] rounded-2xl p-5 border border-[#e2f0ee] flex gap-4">
                   <ShieldCheck className="w-6 h-6 text-[#2b4c4f] shrink-0" />

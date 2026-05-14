@@ -117,16 +117,28 @@ export const ProductDetailPage = () => {
 
   const formatPrice = (price) => `${Number(price).toLocaleString("en-US")} VND`;
   const renderStars = (rating) => {
-    return [...Array(5)].map((_, i) => (
-      <Star
-        key={i}
-        className={`w-3.5 h-3.5 ${
-          i < Math.floor(rating || 5)
-            ? "fill-amber-400 text-amber-400"
-            : "fill-slate-200 text-slate-200"
-        }`}
-      />
-    ));
+    const r = Number(rating) || 0;
+    return (
+      <div className="flex items-center gap-1">
+        <div className="flex items-center">
+          {[...Array(5)].map((_, i) => (
+            <Star
+              key={i}
+              className={`w-3.5 h-3.5 ${
+                i < Math.floor(r)
+                  ? "fill-amber-400 text-amber-400"
+                  : "fill-slate-200 text-slate-200"
+              }`}
+            />
+          ))}
+        </div>
+        {r > 0 && (
+          <span className="text-xs font-bold text-amber-500 ml-1">
+            {r.toFixed(1)}
+          </span>
+        )}
+      </div>
+    );
   };
 
   const totalStock = product.stock || 0;
@@ -438,6 +450,8 @@ export const ProductDetailPage = () => {
               title={item.title}
               price={item.price}
               image={item.thumbnail}
+              rating={item.rating}
+              review_count={item.review_count}
             />
           ))}
         </div>

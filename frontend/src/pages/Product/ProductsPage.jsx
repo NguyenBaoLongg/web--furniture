@@ -379,6 +379,8 @@ export const ProductsPage = () => {
                       "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&q=80&w=800"
                     }
                     slug={product.slug}
+                    rating={product.rating}
+                    review_count={product.review_count}
                   />
                 ))}
               </div>

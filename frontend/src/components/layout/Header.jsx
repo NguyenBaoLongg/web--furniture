@@ -19,6 +19,7 @@ export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [styles, setStyles] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -34,12 +35,14 @@ export const Header = () => {
   useEffect(() => {
     const fetchMenuData = async () => {
       try {
-        const [catRes, roomRes] = await Promise.all([
+        const [catRes, roomRes, styleRes] = await Promise.all([
           axiosClient.get("/categories"),
           axiosClient.get("/rooms"),
+          axiosClient.get("/styles"),
         ]);
         setCategories(catRes.data);
         setRooms(roomRes.data);
+        setStyles(styleRes.data);
       } catch (error) {}
     };
     fetchMenuData();
@@ -175,13 +178,8 @@ export const Header = () => {
             </div>
 
             <Link
-              to="/shop"
-              className="text-sm font-semibold hover:text-primary transition-colors">
-              Cửa hàng
-            </Link>
-            <Link
               to="/collections"
-              className="text-sm font-semibold hover:text-primary transition-colors">
+              className="text-sm font-bold hover:text-primary transition-colors uppercase tracking-tight">
               Bộ sưu tập
             </Link>
           </nav>
@@ -351,6 +349,14 @@ export const Header = () => {
                   ))}
                 </div>
               </details>
+
+              <Link
+                to="/collections"
+                onClick={() => setIsMenuOpen(false)}
+                className="block text-[13px] font-bold text-primary uppercase tracking-tight py-2"
+              >
+                Bộ sưu tập
+              </Link>
 
               <div className="pt-4 border-t border-slate-100 mt-4">
                 {user ? (

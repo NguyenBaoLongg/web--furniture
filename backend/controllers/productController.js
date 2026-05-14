@@ -8,7 +8,8 @@ export const getAllProducts = async (req, res) => {
         categories ( name, slug ),
         product_images ( image_url ),
         product_rooms ( rooms ( id, name, slug ) ),
-        product_colors ( colors ( id, name, hex, element ) )
+        product_colors ( colors ( id, name, hex, element ) ),
+        product_styles ( styles ( id, name, slug ) )
       `);
 
     if (activeOnly === "true") {
@@ -36,7 +37,8 @@ export const getNewArrivals = async (req, res) => {
       .from("products")
       .select(`
         *,
-        product_colors ( colors ( id, name, hex, element ) )
+        product_colors ( colors ( id, name, hex, element ) ),
+        product_styles ( styles ( id, name, slug ) )
       `)
       .eq("is_new_arrival", true)
       .eq("is_active", true)
@@ -59,7 +61,8 @@ export const getProductsByCategory = async (req, res) => {
       .select(`
         *, 
         categories!inner(slug),
-        product_colors ( colors ( id, name, hex, element ) )
+        product_colors ( colors ( id, name, hex, element ) ),
+        product_styles ( styles ( id, name, slug ) )
       `)
       .eq("categories.slug", categorySlug)
       .eq("is_active", true);
@@ -83,19 +86,47 @@ export const getProductsByRoom = async (req, res) => {
         products (
           *, 
           categories (name, slug),
-          product_colors ( colors ( id, name, hex, element ) )
+          product_colors ( colors ( id, name, hex, element ) ),
+          product_styles ( styles ( id, name, slug ) )
         )
       `)
       .eq("rooms.slug", roomSlug)
       .eq("products.is_active", true);
 
-    // Giải nén cấu trúc lồng nhau của Supabase
     const products = data?.map(item => item.products).filter(p => p !== null) || [];
 
     if (error) throw error;
     res.json(products);
   } catch (error) {
     console.error("Lỗi lấy sản phẩm theo phòng:", error);
+    res.status(500).json({ message: "Lỗi Server" });
+  }
+};
+
+export const getProductsByStyle = async (req, res) => {
+  try {
+    const { styleSlug } = req.params;
+
+    const { data, error } = await supabase
+      .from("product_styles")
+      .select(`
+        styles!inner(slug),
+        products (
+          *, 
+          categories (name, slug),
+          product_colors ( colors ( id, name, hex, element ) ),
+          product_styles ( styles ( id, name, slug ) )
+        )
+      `)
+      .eq("styles.slug", styleSlug)
+      .eq("products.is_active", true);
+
+    const products = data?.map(item => item.products).filter(p => p !== null) || [];
+
+    if (error) throw error;
+    res.json(products);
+  } catch (error) {
+    console.error("Lỗi lấy sản phẩm theo style:", error);
     res.status(500).json({ message: "Lỗi Server" });
   }
 };
@@ -112,7 +143,8 @@ export const getProductBySlug = async (req, res) => {
         categories ( name, slug ),
         product_images ( image_url ),
         product_rooms ( rooms ( id, name, slug ) ),
-        product_colors ( colors ( id, name, hex, element ) )
+        product_colors ( colors ( id, name, hex, element ) ),
+        product_styles ( styles ( id, name, slug ) )
       `,
       )
       .eq("slug", slug)
@@ -163,6 +195,7 @@ export const createProduct = async (req, res) => {
       care_instructions,
       sku,
       color_ids,
+      style_ids,
       images,
       room_ids,
       is_active,
@@ -236,6 +269,19 @@ export const createProduct = async (req, res) => {
       if (colorError) console.error("Lỗi lưu quan hệ màu sắc:", colorError);
     }
 
+    if (style_ids && Array.isArray(style_ids) && style_ids.length > 0) {
+      const styleData = style_ids.map((styleId) => ({
+        product_id: product.id,
+        style_id: styleId,
+      }));
+
+      const { error: styleError } = await supabase
+        .from("product_styles")
+        .insert(styleData);
+
+      if (styleError) console.error("Lỗi lưu quan hệ style:", styleError);
+    }
+
     res.status(201).json(product);
   } catch (error) {
     console.error("Lỗi tạo sản phẩm:", error);
@@ -246,7 +292,7 @@ export const createProduct = async (req, res) => {
 export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { images, room_ids, color_ids, ...productData } = req.body;
+    const { images, room_ids, color_ids, style_ids, ...productData } = req.body;
 
     if (productData.title && !productData.slug) {
       productData.slug = slugify(productData.title);
@@ -302,6 +348,21 @@ export const updateProduct = async (req, res) => {
           .from("product_colors")
           .insert(colorData);
         if (colorError) console.error("Lỗi cập nhật quan hệ màu sắc:", colorError);
+      }
+    }
+
+    // Cập nhật quan hệ phong cách (Sync Many-to-Many)
+    if (style_ids && Array.isArray(style_ids)) {
+      await supabase.from("product_styles").delete().eq("product_id", id);
+      if (style_ids.length > 0) {
+        const styleData = style_ids.map((styleId) => ({
+          product_id: id,
+          style_id: styleId,
+        }));
+        const { error: styleError } = await supabase
+          .from("product_styles")
+          .insert(styleData);
+        if (styleError) console.error("Lỗi cập nhật quan hệ style:", styleError);
       }
     }
 

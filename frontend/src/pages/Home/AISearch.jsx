@@ -74,14 +74,6 @@ export const AISearch = () => {
     <section className="py-20 bg-slate-50 border-b border-slate-100 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex flex-col items-center text-center mb-12">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-600/10 text-indigo-600 text-xs font-bold uppercase tracking-wider mb-6">
-            <Sparkles size={14} />
-            <span>Trợ lý mua sắm AI</span>
-          </motion.div>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -230,6 +222,8 @@ export const AISearch = () => {
                           product.product_images?.[0]?.image_url
                         }
                         slug={product.slug}
+                        rating={product.rating}
+                        review_count={product.review_count}
                         padding="p-4"
                       />
                     </div>

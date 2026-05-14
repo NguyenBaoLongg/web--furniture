@@ -29,7 +29,8 @@ Quy tắc bắt buộc:
 - Không markdown, không giải thích, không thêm chữ ngoài JSON.
 Trả về đúng định dạng:
 {
-  "element": "Tên mệnh (Kim, Mộc, Thủy, Hỏa, hoặc Thổ)",
+  "element": "Tên mệnh chính (Kim, Mộc, Thủy, Hỏa, hoặc Thổ)",
+  "nap_am": "Tên nạp âm đầy đủ (ví dụ: Tuyền Trung Thủy, Hải Trung Kim, v.v.)",
   "element_en": "Tên mệnh tiếng Anh (Metal, Wood, Water, Fire, hoặc Earth)",
   "advice": "Lời khuyên tối đa 30 từ về chọn nội thất theo mệnh."
 }
@@ -38,10 +39,8 @@ Trả về đúng định dạng:
     let fengShuiData;
 
     try {
-      console.log(">>> Using Gemini API (gemini-2.0-flash-lite)");
-
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-lite",
+        model: "gemini-2.5-pro",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -50,7 +49,7 @@ Trả về đúng định dạng:
       });
       const text = response.text;
 
-      console.log(">>> Gemini Response:", text);
+      console.log("Gemini:", text);
 
       if (!text) {
         throw new Error("Gemini không trả về dữ liệu.");
@@ -65,6 +64,7 @@ Trả về đúng định dạng:
 
       if (
         !fengShuiData.element ||
+        !fengShuiData.nap_am ||
         !fengShuiData.element_en ||
         !fengShuiData.advice
       ) {

@@ -116,6 +116,8 @@ export const NewArrivals = () => {
                     title={product.title}
                     price={product.price}
                     image={product.thumbnail}
+                    rating={product.rating}
+                    review_count={product.review_count}
                   />
                 </div>
               ))}

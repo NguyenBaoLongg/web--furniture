@@ -1,10 +1,11 @@
 import { supabase } from "../config/supabase.js";
 import { vnpay } from "../config/vnpay.js";
 import { dateFormat } from "vnpay";
+import axios from "axios";
 
 export const createOrder = async (req, res) => {
   try {
-    const { user_id, address, items, total_price, payment_method, note } =
+    const { user_id, address, items, total_price, payment_method, note, payment_status, status } =
       req.body;
     let addressId;
     const { data: existingAddress } = await supabase
@@ -65,8 +66,8 @@ export const createOrder = async (req, res) => {
           address_id: addressId,
           total_price,
           payment_method,
-          status: "pending",
-          payment_status: "unpaid",
+          status: status || "pending",
+          payment_status: payment_status || "unpaid",
           note: note || "",
         },
       ])
@@ -97,8 +98,8 @@ export const createOrder = async (req, res) => {
         {
           order_id: order.id,
           old_status: null,
-          new_status: "pending",
-          note: "Hệ thống ghi nhận đơn hàng mới",
+          new_status: status || "pending",
+          note: payment_status === "paid" ? "Đã thanh toán qua Chuyển khoản" : "Hệ thống ghi nhận đơn hàng mới",
         },
       ]);
     if (historyError) throw historyError;
@@ -133,8 +134,7 @@ export const getUserOrders = async (req, res) => {
         *,
         order_items (
           *,
-          products ( title, thumbnail ),
-          product_variants ( color_name, image_url ) 
+          products ( title, thumbnail )
         ),
         user_addresses ( * ),
         order_status_history ( * )
@@ -162,8 +162,7 @@ export const getOrderById = async (req, res) => {
         *,
         order_items (
           *,
-          products ( title, thumbnail, price ),
-          product_variants ( color_name, image_url ) 
+          products ( id, title, thumbnail, price )
         ),
         user_addresses ( * ),
         order_status_history ( * )
@@ -172,6 +171,10 @@ export const getOrderById = async (req, res) => {
       .eq("id", orderId)
       .maybeSingle();
 
+    if (error) {
+      console.error("Supabase query error in getOrderById:", error);
+    }
+
     if (!data && orderId.length === 24) {
       const { data: allOrders } = await supabase.from("orders").select("id");
       const matchedOrder = allOrders?.find((o) =>
@@ -179,13 +182,14 @@ export const getOrderById = async (req, res) => {
       );
 
       if (matchedOrder) {
-        const { data: detailedOrder } = await supabase
+        const { data: detailedOrder, error: detailedError } = await supabase
           .from("orders")
           .select(
-            `*, order_items(*, products(*), product_variants(*)), user_addresses(*), order_status_history(*)`,
+            `*, order_items(*, products(id, title, thumbnail, price)), user_addresses(*), order_status_history(*)`,
           )
           .eq("id", matchedOrder.id)
           .single();
+        if (detailedError) console.error("Supabase error fetching matched order:", detailedError);
         data = detailedOrder;
       }
     }
@@ -429,6 +433,42 @@ export const getUserTransactions = async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error("Lỗi lấy lịch sử giao dịch:", error);
-    res.status(500).json({ message: "Lỗi Server" });
+    res.status(500).json({ message: "Lỗi Server khi lấy lịch sử giao dịch" });
   }
 };
+
+export const verifyBankTransfer = async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ message: "Thiếu mã nội dung chuyển khoản" });
+    }
+
+    const sheetId = "1gRvifQiOykfKQIfeTkrtTPeZ_XBPSfzvVFJtH5NJa4g";
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=0`;
+
+    const response = await axios.get(sheetUrl);
+    const csvData = response.data;
+    const rows = csvData.split("\n");
+
+    let isFound = false;
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const cleanRow = row.replace(/"/g, "");
+      if (cleanRow && cleanRow.includes(code)) {
+        isFound = true;
+        break;
+      }
+    }
+
+    if (isFound) {
+      return res.json({ success: true, message: "Đã tìm thấy giao dịch" });
+    } else {
+      return res.json({ success: false, message: "Chưa tìm thấy giao dịch" });
+    }
+  } catch (error) {
+    console.error("Lỗi đối soát ngân hàng trên server:", error);
+    res.status(500).json({ message: "Lỗi Server khi đối soát giao dịch" });
+  }
+};
+

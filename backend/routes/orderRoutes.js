@@ -7,6 +7,7 @@ import {
   vnpayCallback,
   getOrderById,
   getUserTransactions,
+  verifyBankTransfer,
 } from "../controllers/orderController.js";
 
 const router = express.Router();
@@ -18,5 +19,7 @@ router.post("/create-vnpay-url", createVnpayPaymentUrl);
 router.get("/vnpay-ipn", handleVnpayIpn);
 router.get("/vnpay-callback", vnpayCallback);
 router.get("/:orderId", getOrderById);
+router.post("/verify-bank-transfer", verifyBankTransfer);
+
 
 export default router;

@@ -78,43 +78,43 @@ export const StaffSupportPage = () => {
           filter: `conversation_id=eq.${selectedConv.id}`,
         },
         async (payload) => {
-          // Kiểm tra xem tin nhắn đã tồn tại trong state chưa (tránh trùng lặp khi vừa gửi vừa nhận)
-          setMessages((prev) => {
-            if (prev.find((m) => m.id === payload.new.id)) return prev;
+          console.log("Nhận tin nhắn mới (staff) realtime:", payload);
+          // Lấy đầy đủ thông tin sender
+          const { data: fullMsg, error } = await supabase
+            .from("messages")
+            .select(
+              `
+              *,
+              sender:users!messages_sender_id_fkey (id, full_name, role)
+            `,
+            )
+            .eq("id", payload.new.id)
+            .single();
 
-            // Nếu chưa có, lấy đầy đủ thông tin sender
-            const fetchFullMsg = async () => {
-              const { data: fullMsg } = await supabase
-                .from("messages")
-                .select(
-                  `
-                  *,
-                  sender:users!messages_sender_id_fkey (id, full_name, role)
-                `,
-                )
-                .eq("id", payload.new.id)
-                .single();
+          if (error) {
+            console.error("Lỗi lấy tin nhắn realtime staff:", error);
+            return;
+          }
 
-              if (fullMsg) {
-                setMessages((p) => {
-                  if (p.find((m) => m.id === fullMsg.id)) return p;
-                  return [...p, fullMsg];
-                });
-                setConversations((convs) =>
-                  convs.map((c) =>
-                    c.id === selectedConv.id
-                      ? { ...c, last_message_at: fullMsg.created_at }
-                      : c,
-                  ),
-                );
-              }
-            };
-            fetchFullMsg();
-            return prev;
-          });
+          if (fullMsg) {
+            setMessages((prev) => {
+              if (prev.find((m) => m.id === fullMsg.id)) return prev;
+              return [...prev, fullMsg];
+            });
+            // Cập nhật danh sách conversations để đẩy cái mới nhất lên đầu (nếu cần)
+            setConversations((convs) =>
+              convs.map((c) =>
+                c.id === selectedConv.id
+                  ? { ...c, last_message_at: fullMsg.created_at }
+                  : c,
+              ),
+            );
+          }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`Trạng thái realtime staff chat ${selectedConv.id}:`, status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -307,22 +307,22 @@ export const StaffSupportPage = () => {
                       </div>
                     )}
                     
-                    <div className={`flex items-end gap-2 ${!isFromCustomer ? "justify-end" : "justify-start"} ${isLastInGroup ? "mb-6" : "mb-1"}`}>
-                      {/* Avatar đối phương */}
-                      {isFromCustomer && (
+                    <div className={`flex items-end gap-2 ${isFromMe ? "justify-end" : "justify-start"} ${isLastInGroup ? "mb-6" : "mb-1"}`}>
+                      {/* Avatar đối phương (Người gửi không phải mình) */}
+                      {!isFromMe && (
                         <div className="w-8 h-8 flex-shrink-0">
                           {isLastInGroup ? (
-                            <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-black text-slate-500 overflow-hidden">
-                              {msg.sender?.full_name?.charAt(0) || "C"}
+                            <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-black text-slate-500 overflow-hidden uppercase">
+                              {msg.sender?.full_name?.charAt(0) || "U"}
                             </div>
                           ) : <div className="w-8" />}
                         </div>
                       )}
 
-                      <div className={`max-w-[70%] flex flex-col ${!isFromCustomer ? "items-end" : "items-start"}`}>
+                      <div className={`max-w-[70%] flex flex-col ${isFromMe ? "items-end" : "items-start"}`}>
                         <div
                           className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed shadow-sm transition-all hover:scale-[1.01] ${
-                            !isFromCustomer
+                            isFromMe
                               ? "bg-[#2b4c4f] text-white rounded-tr-none"
                               : "bg-white text-black rounded-tl-none border border-slate-200"
                           }`}

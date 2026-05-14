@@ -42,9 +42,6 @@ export const sendOtp = async (req, res) => {
       otp,
       expiresAt: Date.now() + 5 * 60 * 1000,
     });
-
-    console.log(`[DEV ONLY] Mã OTP Đăng ký cho ${email} là: ${otp}`);
-
     try {
       await transporter.sendMail({
         from: '"Furniture Hub" <no-reply@furniturehub.com>',
@@ -56,11 +53,11 @@ export const sendOtp = async (req, res) => {
       });
     } catch (mailError) {
       console.warn(
-        "Không thể gửi Email thực tế, hệ thống đã in Log (có thể do chưa cấu hình SMTP).",
+        "Ko thể gửi Email",
       );
     }
 
-    res.status(200).json({ message: "Mã OTP đã được gửi đến email của bạn!" });
+    res.status(200).json({ message: "Ko gửi được email" });
   } catch (error) {
     console.error("Lỗi gửi OTP:", error);
     res.status(400).json({ message: "Không thể tạo mã OTP" });
@@ -75,7 +72,7 @@ export const verifyRegistration = async (req, res) => {
     if (!storeData) {
       return res.status(400).json({
         message:
-          "Phiên đăng ký đã hết hạn hoặc không tồn tại, vui lòng lấy lại mã.",
+          "Đăng kí hết hạn",
       });
     }
 
@@ -94,12 +91,7 @@ export const verifyRegistration = async (req, res) => {
       email,
       password: storeData.password,
     });
-
-    console.log("[DEBUG] authError:", authError);
-    console.log("[DEBUG] authData:", JSON.stringify(authData, null, 2));
-
     if (authError) throw authError;
-
     // Nếu email đã tồn tại trong auth.users nhưng bị thiếu trong public.users,
     if (!authData || !authData.user) {
       throw new Error("User already registered");
@@ -307,5 +299,121 @@ export const updateProfile = async (req, res) => {
   } catch (error) {
     console.error("Lỗi cập nhật profile:", error);
     res.status(500).json({ message: "Lỗi Server" });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Vui lòng nhập email" });
+
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id, full_name")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (!existingUser) {
+      return res.status(400).json({ message: "Email không tồn tại trong hệ thống" });
+    }
+
+    // Kiểm tra xem tài khoản có phải đăng ký qua Google không
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(existingUser.id);
+    
+    if (authError) {
+      console.error("Lỗi kiểm tra admin.getUserById (Có thể do sai Service Role Key):", authError);
+      return res.status(500).json({ 
+        message: "Lỗi cấu hình Server: Không thể xác định loại tài khoản. Vui lòng kiểm tra lại cấu hình Service Role Key." 
+      });
+    }
+
+    if (authUser && authUser.user) {
+      const isGoogleUser = 
+        authUser.user.app_metadata?.providers?.includes('google') || 
+        authUser.user.identities?.some(identity => identity.provider === 'google');
+        
+      if (isGoogleUser) {
+        return res.status(400).json({ 
+          message: "Không thể đổi vì tài khoản này đăng ký bằng tài khoản GG" 
+        });
+      }
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(email + "_reset", {
+      otp,
+      userId: existingUser.id,
+      expiresAt: Date.now() + 5 * 60 * 1000,
+    });
+
+    console.log(`[DEV ONLY] Mã OTP Reset Password cho ${email} là: ${otp}`);
+
+    try {
+      await transporter.sendMail({
+        from: '"Furniture Hub" <no-reply@furniturehub.com>',
+        to: email,
+        subject: "Mã xác thực Quên mật khẩu",
+        html: `<h3>Chào ${existingUser.full_name || 'bạn'},</h3>
+               <p>Mã xác nhận OTP để đặt lại mật khẩu của bạn là: <strong style="font-size:24px; color:#2b4c4f;">${otp}</strong></p>
+               <p>Mã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>`,
+      });
+    } catch (mailError) {
+      console.warn("Lỗi gửi mail, dùng mã trong console");
+    }
+
+    res.status(200).json({ message: "Mã OTP đã được gửi đến email của bạn!" });
+  } catch (error) {
+    console.error("Lỗi forgotPassword:", error);
+    res.status(500).json({ message: "Lỗi Server" });
+  }
+};
+
+export const verifyResetOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const storeData = otpStore.get(email + "_reset");
+
+    if (!storeData) {
+      return res.status(400).json({ message: "Mã OTP không hợp lệ hoặc đã hết hạn." });
+    }
+
+    if (Date.now() > storeData.expiresAt) {
+      otpStore.delete(email + "_reset");
+      return res.status(400).json({ message: "Mã OTP đã hết hạn." });
+    }
+
+    if (storeData.otp !== otp) {
+      return res.status(400).json({ message: "Mã OTP không chính xác!" });
+    }
+
+    res.status(200).json({ message: "Xác thực OTP thành công" });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi Server" });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, newPassword, otp } = req.body;
+    
+    const storeData = otpStore.get(email + "_reset");
+    if (!storeData || storeData.otp !== otp || Date.now() > storeData.expiresAt) {
+        return res.status(400).json({ message: "Yêu cầu không hợp lệ hoặc OTP đã hết hạn." });
+    }
+
+    // Update password
+    const { data, error } = await supabase.auth.admin.updateUserById(storeData.userId, {
+      password: newPassword
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    otpStore.delete(email + "_reset");
+    res.status(200).json({ message: "Đổi mật khẩu thành công!" });
+  } catch (error) {
+    console.error("Lỗi resetPassword:", error);
+    res.status(400).json({ message: "Lỗi Server hoặc tài khoản không thể đổi mật khẩu (có thể do đăng ký bằng Google)" });
   }
 };

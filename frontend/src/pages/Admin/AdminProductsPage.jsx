@@ -14,6 +14,7 @@ import {
   ArrowUpDown,
   RotateCcw,
   LayoutGrid,
+  Tags,
 } from "lucide-react";
 import { axiosClient } from "../../utils/axiosClient";
 import { supabase } from "../../config/supabase";
@@ -23,6 +24,7 @@ export const AdminProductsPage = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [styles, setStyles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
@@ -61,22 +63,25 @@ export const AdminProductsPage = () => {
     care_instructions: "",
     room_ids: [],
     color_ids: [],
+    style_ids: [],
     is_active: true,
   });
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [prodRes, catRes, roomRes, colorRes] = await Promise.all([
+      const [prodRes, catRes, roomRes, colorRes, styleRes] = await Promise.all([
         axiosClient.get("/products"),
         axiosClient.get("/categories"),
         axiosClient.get("/rooms"),
         axiosClient.get("/colors"),
+        axiosClient.get("/styles"),
       ]);
       setProducts(prodRes.data);
       setCategories(catRes.data);
       setRooms(roomRes.data);
       setColorLibrary(colorRes.data);
+      setStyles(styleRes.data);
     } catch (error) {
       toast.error("Không thể tải dữ liệu");
     } finally {
@@ -114,6 +119,10 @@ export const AdminProductsPage = () => {
           product.product_colors
             ?.map((pc) => pc.colors?.id)
             .filter((id) => id) || [],
+        style_ids:
+          product.product_styles
+            ?.map((ps) => ps.styles?.id)
+            .filter((id) => id) || [],
         is_active: product.is_active !== undefined ? product.is_active : true,
       });
       setPreviewUrl(product.thumbnail || "");
@@ -147,6 +156,7 @@ export const AdminProductsPage = () => {
         care_instructions: "",
         room_ids: [],
         color_ids: [],
+        style_ids: [],
         is_active: true,
       });
       setPreviewUrl("");
@@ -907,6 +917,47 @@ export const AdminProductsPage = () => {
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#2b4c4f] outline-none text-sm"
                       placeholder="Mô tả ngắn gọn về sản phẩm..."
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                      Phong cách thiết kế (Chọn nhiều)
+                    </label>
+                    <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                      {styles.map((style) => (
+                        <label
+                          key={style.id}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                            formData.style_ids.includes(style.id)
+                              ? "bg-[#2b4c4f] border-[#2b4c4f] text-white shadow-sm"
+                              : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                          }`}>
+                          <input
+                            type="checkbox"
+                            className="hidden"
+                            checked={formData.style_ids.includes(style.id)}
+                            onChange={(e) => {
+                              const newStyles = e.target.checked
+                                ? [...formData.style_ids, style.id]
+                                : formData.style_ids.filter(
+                                    (id) => id !== style.id,
+                                  );
+                              setFormData({
+                                ...formData,
+                                style_ids: newStyles,
+                              });
+                            }}
+                          />
+                          <Tags size={14} className={formData.style_ids.includes(style.id) ? "text-white" : "text-slate-400"} />
+                          <span className="text-[11px] font-bold uppercase tracking-tight">
+                            {style.name}
+                          </span>
+                        </label>
+                      ))}
+                      {styles.length === 0 && (
+                        <p className="text-[11px] text-slate-400 italic">Chưa có phong cách nào được tạo</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 

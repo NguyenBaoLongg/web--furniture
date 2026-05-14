@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Settings,
   Armchair,
+  Tags,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -25,6 +26,7 @@ export const AdminSidebar = () => {
     { name: "Sản phẩm", icon: Armchair, path: "/admin/products" },
     { name: "Danh mục", icon: Files, path: "/admin/categories" },
     { name: "Khách hàng", icon: Users, path: "/admin/customers" },
+    { name: "Phong cách", icon: Tags, path: "/admin/styles" },
     { name: "Phân quyền", icon: ShieldCheck, path: "/admin/permissions" },
   ];
 
